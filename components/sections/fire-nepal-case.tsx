@@ -1,4 +1,5 @@
 import { projects } from "@/config/site";
+import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { Reveal, Stagger, StaggerItem } from "@/components/ui/reveal";
 import { CaseVisuals } from "@/components/sections/case-visuals";
@@ -18,8 +19,8 @@ const chapters = [
   },
 ] as const;
 
-export function FireNepalCase() {
-  const project = projects.fireNepal;
+export function FireNepalCase({ liveUrl }: { liveUrl?: string }) {
+  const project = { ...projects.fireNepal, href: liveUrl || projects.fireNepal.href };
 
   return (
     <section id="fire-nepal" className="relative scroll-mt-24 py-20 sm:py-24 lg:py-32">
@@ -31,6 +32,13 @@ export function FireNepalCase() {
           <h2 className="max-w-3xl text-[clamp(2rem,4.4vw,3.6rem)] font-medium leading-[1.05] tracking-[-0.04em]">
             FIRE Nepal, in focus
           </h2>
+          {project.href ? (
+            <div className="mt-6">
+              <ButtonLink href={project.href} external>
+                Live Project
+              </ButtonLink>
+            </div>
+          ) : null}
         </Reveal>
 
         <Stagger className="mt-12 grid gap-6 lg:grid-cols-3">

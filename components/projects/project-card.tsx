@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { ProjectPreview } from "@/components/projects/project-preview";
+import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Accent = "emerald" | "rose" | "amber";
@@ -11,6 +12,8 @@ export function ProjectCard({
   description,
   technologies,
   href,
+  githubUrl,
+  youtubeUrl,
   cta,
   accent,
   modules,
@@ -23,26 +26,18 @@ export function ProjectCard({
   description: string;
   technologies: readonly string[];
   href: string;
+  githubUrl?: string;
+  youtubeUrl?: string;
   cta: string;
   accent: Accent;
   modules: readonly string[];
   image?: string;
   featured?: boolean;
 }) {
-  const Wrapper = href ? "a" : "article";
-  const wrapperProps = href
-    ? {
-        href,
-        target: "_blank" as const,
-        rel: "noopener noreferrer",
-      }
-    : {};
-
   return (
-    <Wrapper
-      {...wrapperProps}
+    <article
       className={cn(
-        "group block overflow-hidden rounded-[1.6rem] border border-border bg-bg-card p-5 transition-all duration-500 hover:-translate-y-1 hover:border-accent/30 hover:shadow-[var(--shadow)] sm:p-7",
+        "group overflow-hidden rounded-[1.6rem] border border-border bg-bg-card p-5 transition-all duration-500 hover:-translate-y-1 hover:border-accent/30 hover:shadow-[var(--shadow)] sm:p-7",
         featured && "lg:grid lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:p-8",
       )}
     >
@@ -66,9 +61,6 @@ export function ProjectCard({
           <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
             Project {number}
           </p>
-          <span className="text-accent transition-transform duration-300 group-hover:translate-x-1">
-            →
-          </span>
         </div>
         <p className="mt-3 text-xs uppercase tracking-[0.16em] text-accent">{category}</p>
         <h3 className="mt-2 text-3xl tracking-[-0.04em] sm:text-4xl">{name}</h3>
@@ -85,11 +77,26 @@ export function ProjectCard({
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-sm text-text">
-          {href ? cta : "Live URL coming soon"}
-          {href ? <span className="hover-arrow ml-1">→</span> : null}
-        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {href ? (
+            <ButtonLink href={href} external>
+              {cta}
+            </ButtonLink>
+          ) : (
+            <p className="text-sm text-subtle">Live URL coming soon</p>
+          )}
+          {githubUrl ? (
+            <ButtonLink href={githubUrl} external variant="ghost">
+              GitHub
+            </ButtonLink>
+          ) : null}
+          {youtubeUrl ? (
+            <ButtonLink href={youtubeUrl} external variant="ghost">
+              YouTube
+            </ButtonLink>
+          ) : null}
+        </div>
       </div>
-    </Wrapper>
+    </article>
   );
 }

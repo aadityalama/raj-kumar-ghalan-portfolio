@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { skills } from "@/config/site";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
 
-const categories = Object.keys(skills) as Array<keyof typeof skills>;
-
-export function Skills() {
-  const [active, setActive] = useState<(typeof categories)[number]>("Digital Product");
+export function Skills({ groups }: { groups: Record<string, string[]> }) {
+  const categories = Object.keys(groups);
+  const [active, setActive] = useState(categories[0] || "");
   const reduce = useReducedMotion();
 
   return (
@@ -50,7 +48,7 @@ export function Skills() {
               transition={{ duration: 0.28 }}
               className="grid gap-3 sm:grid-cols-2"
             >
-              {skills[active].map((item, index) => (
+              {(groups[active] || []).map((item, index) => (
                 <li
                   key={item}
                   className="flex items-center gap-3 border-b border-border py-3 last:border-b-0 sm:last:border-b"

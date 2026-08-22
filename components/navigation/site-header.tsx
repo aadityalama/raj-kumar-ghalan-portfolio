@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { navigation, site } from "@/config/site";
 import { ThemeToggle } from "@/components/navigation/theme-toggle";
 import { cn } from "@/lib/utils";
 
-const sectionIds = navigation.map((item) => item.href.slice(1));
-
-export function SiteHeader() {
+export function SiteHeader({
+  items = navigation,
+}: {
+  items?: readonly { label: string; href: string }[];
+}) {
+  const sectionIds = useMemo(
+    () => items.map((item) => item.href.replace("#", "")),
+    [items],
+  );
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState("about");
@@ -37,7 +43,7 @@ export function SiteHeader() {
 
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, []);
+  }, [sectionIds]);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -72,8 +78,8 @@ export function SiteHeader() {
         </a>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
-          {navigation.map((item) => {
-            const id = item.href.slice(1);
+          {items.map((item) => {
+            const id = item.href.replace("#", "");
             const isActive = active === id;
             return (
               <a
@@ -140,7 +146,7 @@ export function SiteHeader() {
           className="fixed inset-x-0 top-[var(--nav-height)] bottom-0 z-40 bg-bg/96 px-5 backdrop-blur-2xl lg:hidden"
         >
           <nav className="flex h-full flex-col justify-center gap-2 pb-[var(--safe-bottom)]" aria-label="Mobile">
-            {navigation.map((item) => (
+            {items.map((item) => (
               <a
                 key={item.href}
                 href={item.href}

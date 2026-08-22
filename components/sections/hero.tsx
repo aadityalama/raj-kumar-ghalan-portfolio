@@ -2,8 +2,43 @@ import Image from "next/image";
 import { site } from "@/config/site";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import type { SettingsRow } from "@/lib/cms/types";
 
-export function Hero() {
+function HeroName({ title }: { title: string }) {
+  const lines = title.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length > 1) {
+    return (
+      <>
+        {lines[0]}
+        {lines.slice(1).map((line) => (
+          <span key={line} className="block text-muted">
+            {line}
+          </span>
+        ))}
+      </>
+    );
+  }
+
+  const parts = title.trim().split(/\s+/);
+  if (parts.length > 1) {
+    return (
+      <>
+        {parts.slice(0, -1).join(" ")}
+        <span className="block text-muted">{parts.at(-1)}</span>
+      </>
+    );
+  }
+
+  return title;
+}
+
+export function Hero({
+  settings,
+  portrait,
+}: {
+  settings: SettingsRow;
+  portrait: { src: string; alt: string };
+}) {
   return (
     <section
       id="top"
@@ -15,19 +50,16 @@ export function Hero() {
       <Container className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)] lg:gap-12">
         <div>
           <p className="hero-rise mb-6 font-mono text-[11px] uppercase tracking-[0.32em] text-accent">
-            {site.positioning}
+            {settings.hero_positioning || site.positioning}
           </p>
           <h1 className="hero-rise max-w-[12ch] text-[clamp(3.1rem,9.2vw,7.25rem)] font-medium leading-[0.96] tracking-[-0.06em] [animation-delay:80ms]">
-            Raj Kumar
-            <span className="block text-muted">Ghalan</span>
+            <HeroName title={settings.hero_title || site.name} />
           </h1>
           <p className="hero-rise mt-8 max-w-xl text-xl leading-snug tracking-[-0.03em] text-text [animation-delay:140ms] sm:text-2xl">
-            {site.headline}
+            {settings.hero_subtitle || site.headline}
           </p>
           <p className="hero-rise mt-5 max-w-lg text-pretty text-base leading-relaxed text-muted [animation-delay:200ms]">
-            Experienced professional based in South Korea — a NEPSE market
-            analyst and technical analyst, investor and trader, and a builder of
-            digital products around financial independence and content.
+            {settings.hero_body}
           </p>
           <div className="hero-rise mt-9 flex flex-wrap gap-3 [animation-delay:260ms]">
             <ButtonLink href="#projects">View My Work</ButtonLink>
@@ -42,8 +74,8 @@ export function Hero() {
           <div className="relative overflow-hidden rounded-[1.8rem] border border-border bg-bg-card shadow-[var(--shadow)]">
             <div className="relative aspect-[4/5] w-full">
               <Image
-                src={site.portrait.src}
-                alt={site.portrait.alt}
+                src={portrait.src}
+                alt={portrait.alt}
                 fill
                 priority
                 className="object-cover object-[center_18%]"

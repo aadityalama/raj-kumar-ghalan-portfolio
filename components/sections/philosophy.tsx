@@ -1,8 +1,8 @@
-import { philosophy } from "@/config/site";
+import { philosophy as defaultPhilosophy } from "@/config/site";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 
-export function Philosophy() {
+export function Philosophy({ text }: { text: string }) {
   return (
     <section id="philosophy" className="relative py-24 sm:py-28">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,var(--accent-glow),transparent_42%)]" />
@@ -12,7 +12,7 @@ export function Philosophy() {
             09 / Personal philosophy
           </p>
           <h2 className="display max-w-4xl text-[clamp(2rem,5.4vw,4.6rem)] leading-[1.05] tracking-[-0.035em]">
-            {philosophy}
+            {text || defaultPhilosophy}
           </h2>
         </Reveal>
       </Container>

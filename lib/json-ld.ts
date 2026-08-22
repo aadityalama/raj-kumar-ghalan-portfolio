@@ -4,6 +4,7 @@ export function personJsonLd() {
   const sameAs = [
     socials.youtube.href,
     socials.facebook.href,
+    socials.facebookNepse.href,
     socials.instagram.href,
     socials.tiktok.href,
     socials.linkedin.href,

@@ -6,6 +6,10 @@
  * Do not invent emails, social profiles, URLs, dates, or metrics.
  */
 
+const NEPSE_FACEBOOK_URL =
+  "https://www.facebook.com/share/14ufXJ5qRDG/?mibextid=wwXIfr";
+const FIRE_NEPAL_YOUTUBE_URL = "https://www.youtube.com/@Firenepal853";
+
 export const site = {
   name: "Raj Kumar Ghalan",
   wordmark: "RAJ KUMAR GHALAN",
@@ -60,13 +64,18 @@ export const site = {
 export const socials = {
   youtube: {
     label: "YouTube",
-    href: "https://www.youtube.com/@Firenepal853",
+    href: FIRE_NEPAL_YOUTUBE_URL,
     note: "FIRE Nepal channel",
   },
   facebook: {
     label: "Facebook",
     href: "https://www.facebook.com/share/1AuV3FkbDN/?mibextid=wwXIfr",
     note: "FIRE Nepal",
+  },
+  facebookNepse: {
+    label: "Facebook",
+    href: NEPSE_FACEBOOK_URL,
+    note: "NEPSE Market Analyst",
   },
   instagram: {
     label: "Instagram",
@@ -102,21 +111,49 @@ export const gallery = [
     src: "/photos/portrait-hero.jpg",
     alt: "Portrait of Raj Kumar Ghalan",
     caption: "Portrait",
+    kind: "Personal",
   },
   {
     src: "/photos/life-01-building.jpg",
     alt: "Laptop open to FIRE Nepal during product work",
     caption: "Building FIRE Nepal",
+    kind: "Work",
   },
   {
     src: "/photos/life-02-dashboard.jpg",
     alt: "FIRE Nepal dashboard on a laptop",
     caption: "Product work",
+    kind: "Work",
   },
   {
     src: "/photos/life-03-portfolio.jpg",
     alt: "FIRE Nepal portfolio workspace on a laptop",
     caption: "Workspace",
+    kind: "Work",
+  },
+  {
+    src: "/projects/fire-nepal-home.jpg",
+    alt: "FIRE Nepal homepage",
+    caption: "FIRE Nepal",
+    kind: "Project",
+  },
+  {
+    src: "/projects/fire-nepal-cashflow.jpg",
+    alt: "FIRE Nepal cashflow dashboard",
+    caption: "Cashflow",
+    kind: "Project",
+  },
+  {
+    src: "/projects/fire-nepal-tools.jpg",
+    alt: "FIRE Nepal tools on mobile",
+    caption: "Tools",
+    kind: "Project",
+  },
+  {
+    src: "/projects/uvely-glow-home.jpg",
+    alt: "Uvely Glow storefront",
+    caption: "Uvely Glow",
+    kind: "Project",
   },
 ] as const;
 
@@ -288,6 +325,7 @@ export const skills = {
     "Technical Analysis",
     "Market Trend Analysis",
     "Trading & Investment",
+    "Nepali Share Market Investor",
     "Investor Education",
     "Financial Content Creation",
   ],
@@ -298,25 +336,46 @@ export const market = {
   title: "Reading the Nepal market with discipline",
   description:
     "I analyze the Nepal Stock Exchange (NEPSE) with a focus on technical analysis, market trends, trading strategies, and investor education. Through my content and analysis, I share practical insights for Nepali investors and traders navigating the stock market.",
+  profile:
+    "I am a Nepali share market investor and NEPSE market analyst. My technical analysis Facebook page has 11K+ followers. I publish NEPSE technical analysis, follow Nepal share market trends, and actively invest and trade — educational work for investors and traders, not profit or return guarantees.",
+  facebook: {
+    label: "Facebook",
+    href: NEPSE_FACEBOOK_URL,
+    cta: "Open Facebook page",
+  },
+  stats: [
+    { value: "11K+", label: "Followers" },
+    { value: "231+", label: "Posts" },
+  ],
   capabilities: [
     "NEPSE Market Analysis",
     "Technical Analysis",
     "Market Trend Analysis",
     "Trading & Investment",
+    "Nepali Share Market Investor",
     "Investor Education",
     "Financial Content Creation",
   ],
-  note: "Educational analysis and content for investors and traders — not licensed financial advice.",
+  note: "Educational analysis and content for investors and traders — not licensed financial advice, and not a promise of profits or returns.",
 } as const;
 
 export const contentFocus = {
   title: "NEPSE Technical Analysis",
-  body: "Market analysis, technical setups, trading ideas, market trends and educational content for Nepali investors and traders.",
+  body: "Market analysis, technical setups, trading ideas, Nepal share market trends, and educational content for Nepali investors and traders.",
+  href: NEPSE_FACEBOOK_URL,
   stats: [
     { value: "11K+", label: "Followers" },
     { value: "231+", label: "Posts" },
   ],
   context: "NEPSE / technical analysis Facebook page",
+} as const;
+
+export const youtubeFocus = {
+  title: "FIRE Nepal on YouTube",
+  body: "Financial education, personal finance, and stories around the FIRE Nepal product — on the official FIRE Nepal channel.",
+  href: FIRE_NEPAL_YOUTUBE_URL,
+  cta: "Open YouTube channel",
+  context: "FIRE Nepal YouTube",
 } as const;
 
 export const contentThemes = [

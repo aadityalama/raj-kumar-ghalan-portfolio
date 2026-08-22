@@ -15,29 +15,62 @@ import { OtherProjects } from "@/components/sections/other-projects";
 import { Philosophy } from "@/components/sections/philosophy";
 import { SiteFooter } from "@/components/sections/site-footer";
 import { Skills } from "@/components/sections/skills";
+import {
+  featuredPortrait,
+  getPublicPortfolio,
+  groupedSkills,
+  isSectionVisible,
+  navItems,
+  socialByPlatform,
+} from "@/lib/cms/public";
 
-export default function Home() {
+export default async function Home() {
+  const portfolio = await getPublicPortfolio();
+  const items = navItems(portfolio);
+  const show = (key: string) => isSectionVisible(portfolio, key);
+  const featuredProjects = portfolio.projects.filter((item) => item.featured);
+  const otherProjects = portfolio.projects.filter((item) => !item.featured);
+  const fireNepal = portfolio.projects.find((item) => item.title.toLowerCase().includes("fire nepal"));
+  const nepseSocial =
+    socialByPlatform(portfolio, "facebookNepse") ||
+    portfolio.socials.find((item) => item.note.toLowerCase().includes("nepse"));
+
   return (
     <>
       <ScrollProgress />
-      <SiteHeader />
+      <SiteHeader items={items} />
       <Cursor />
       <main id="main">
-        <Hero />
-        <About />
-        <LifeGallery />
-        <Experience />
-        <Market />
-        <FeaturedProjects />
-        <FireNepalCase />
-        <OtherProjects />
-        <Skills />
-        <ContentCreation />
+        <Hero settings={portfolio.settings} portrait={featuredPortrait(portfolio)} />
+        {show("about") ? <About settings={portfolio.settings} /> : null}
+        {show("gallery") && portfolio.gallery.length ? <LifeGallery photos={portfolio.gallery} /> : null}
+        {show("experience") ? (
+          <Experience settings={portfolio.settings} items={portfolio.experience} />
+        ) : null}
+        {show("market") ? (
+          <Market
+            settings={portfolio.settings}
+            facebookUrl={nepseSocial?.href || portfolio.settings.market_facebook_url}
+          />
+        ) : null}
+        {show("projects") ? <FeaturedProjects items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)} /> : null}
+        {show("projects") && fireNepal ? <FireNepalCase liveUrl={fireNepal.live_url} /> : null}
+        {show("projects") ? (
+          <OtherProjects items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)} />
+        ) : null}
+        {show("skills") ? <Skills groups={groupedSkills(portfolio.skills)} /> : null}
+        {show("content") ? (
+          <ContentCreation settings={portfolio.settings} socials={portfolio.socials} />
+        ) : null}
         <CareerTimeline />
-        <Philosophy />
-        <Contact />
+        {show("philosophy") ? <Philosophy text={portfolio.settings.philosophy} /> : null}
+        {show("contact") ? <Contact contact={portfolio.contact} socials={portfolio.socials} /> : null}
       </main>
-      <SiteFooter />
+      <SiteFooter
+        positioning={portfolio.settings.hero_positioning}
+        items={items}
+        socials={portfolio.socials}
+      />
     </>
   );
 }

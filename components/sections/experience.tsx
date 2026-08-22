@@ -3,38 +3,79 @@ import { experience } from "@/config/site";
 import { Section } from "@/components/ui/section";
 import { Reveal, Stagger, StaggerItem } from "@/components/ui/reveal";
 import { ExperiencePhotos } from "@/components/sections/experience-photos";
+import type { ExperienceRow, SettingsRow } from "@/lib/cms/types";
 
-export function Experience() {
+export function Experience({
+  settings,
+  items,
+}: {
+  settings: SettingsRow;
+  items: ExperienceRow[];
+}) {
+  const featured = items.find((item) => item.featured) || items[0];
+  const others = items.filter((item) => item.id !== featured?.id);
+
   return (
     <Section
       id="experience"
       eyebrow="02 / Experience"
-      title="Professional journey"
-      description="Industrial craft first. Digital products next. The same standard: do the work carefully."
+      title={settings.journey_title || "Professional journey"}
+      description={settings.journey_description}
     >
-      <Reveal>
-        <article className="overflow-hidden rounded-[1.4rem] border border-border bg-bg-card p-6 shadow-[var(--shadow)] sm:p-8 lg:grid lg:grid-cols-[140px_minmax(0,1fr)] lg:items-start lg:gap-8 lg:p-10">
-          <div className="mb-6 grid size-24 place-items-center rounded-2xl border border-border bg-white p-3 lg:mb-0 lg:size-[120px]">
-            <Image
-              src={experience.logo}
-              alt={`${experience.company} mark`}
-              width={96}
-              height={96}
-              className="h-auto w-full object-contain"
-            />
-          </div>
-          <div>
+      {featured ? (
+        <Reveal>
+          <article className="overflow-hidden rounded-[1.4rem] border border-border bg-bg-card p-6 shadow-[var(--shadow)] sm:p-8 lg:grid lg:grid-cols-[140px_minmax(0,1fr)] lg:items-start lg:gap-8 lg:p-10">
+            {featured.company.toLowerCase().includes("kp electric") ? (
+              <div className="mb-6 grid size-24 place-items-center rounded-2xl border border-border bg-white p-3 lg:mb-0 lg:size-[120px]">
+                <Image
+                  src={experience.logo}
+                  alt={`${featured.company} mark`}
+                  width={96}
+                  height={96}
+                  className="h-auto w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="mb-6 hidden lg:block" />
+            )}
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">
+                {[featured.start_year, featured.end_year].filter(Boolean).join(" – ") || experience.tenure}
+              </p>
+              <h3 className="mt-3 text-3xl tracking-[-0.04em] sm:text-4xl">{featured.company}</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+                {featured.position}
+              </p>
+              <p className="mt-5 max-w-2xl text-pretty text-muted">{featured.description}</p>
+              {featured.technologies.length ? (
+                <ul className="mt-5 flex flex-wrap gap-2">
+                  {featured.technologies.map((tech) => (
+                    <li
+                      key={tech}
+                      className="rounded-full border border-border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle"
+                    >
+                      {tech}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </article>
+        </Reveal>
+      ) : null}
+
+      {others.map((item) => (
+        <Reveal key={item.id}>
+          <article className="mt-4 rounded-[1.4rem] border border-border bg-bg-card p-6 sm:p-8">
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">
-              {experience.tenure}
+              {[item.start_year, item.end_year].filter(Boolean).join(" – ")}
             </p>
-            <h3 className="mt-3 text-3xl tracking-[-0.04em] sm:text-4xl">{experience.company}</h3>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-              {experience.role}
-            </p>
-            <p className="mt-5 max-w-2xl text-pretty text-muted">{experience.summary}</p>
-          </div>
-        </article>
-      </Reveal>
+            <h3 className="mt-3 text-2xl tracking-[-0.03em]">{item.company}</h3>
+            <p className="mt-2 text-sm text-muted">{item.position}</p>
+            <p className="mt-4 max-w-2xl text-pretty text-muted">{item.description}</p>
+          </article>
+        </Reveal>
+      ))}
 
       <ExperiencePhotos />
 
