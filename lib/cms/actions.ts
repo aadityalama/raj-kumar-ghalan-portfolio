@@ -21,7 +21,12 @@ export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") || "");
   const allowed = adminEmail();
 
-  if (!allowed) return { error: "Admin access is not configured." };
+  if (!allowed) {
+    return {
+      error:
+        "Admin access is not configured. Set server-only ADMIN_EMAIL on the host to the designated Auth user email.",
+    };
+  }
   if (!email || !password) return { error: "Email and password are required." };
   if (email !== allowed) return { error: "This account is not authorized for admin access." };
 

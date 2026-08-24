@@ -9,6 +9,7 @@ Personal website for Raj Kumar Ghalan — professional, digital builder, and cre
 - Tailwind CSS
 - Framer Motion
 - next-themes
+- Supabase (Auth + CMS)
 
 ## Content
 
@@ -25,6 +26,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Copy [`.env.example`](.env.example) to `.env.local` and fill in local values when working on the CMS.
+
 ## Checks
 
 ```bash
@@ -33,6 +36,20 @@ npm run typecheck
 npm run build
 ```
 
-## Deploy
+## Deploy (Hostinger)
 
-Set `NEXT_PUBLIC_SITE_URL` to the production origin before deploying (see `.env.example`).
+Set these in **Website → Environment variables** (not in the client bundle, except `NEXT_PUBLIC_*`):
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Canonical origin, e.g. `https://your-domain.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes (CMS/admin) | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Public anon key (`*` or use publishable key below) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes* | Alternate to anon key on newer projects |
+| `ADMIN_EMAIL` | Recommended | Server-only allowlist; must match the Supabase Auth admin user and `002_grant_admin.sql`. If unset, the app falls back to `DESIGNATED_ADMIN_EMAIL` in `config/admin.ts`. |
+
+Do **not** set `SUPABASE_SERVICE_ROLE_KEY`, passwords, or any admin secret as `NEXT_PUBLIC_*`.
+
+After creating the Auth user for the designated admin email, run the SQL migrations under `supabase/migrations/` (including `002_grant_admin.sql`) in that Supabase project. Disable public sign-up in Supabase Auth.
+
+Suggested Hostinger start command: `npm run start -- -p $PORT`.
