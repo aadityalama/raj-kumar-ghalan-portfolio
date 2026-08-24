@@ -181,6 +181,52 @@ body {
   .hero-rise {
     animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+
+  .mobile-nav-overlay {
+    animation: menu-overlay-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .mobile-nav-link {
+    animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .mobile-nav-link:nth-child(1) {
+    animation-delay: 40ms;
+  }
+
+  .mobile-nav-link:nth-child(2) {
+    animation-delay: 70ms;
+  }
+
+  .mobile-nav-link:nth-child(3) {
+    animation-delay: 100ms;
+  }
+
+  .mobile-nav-link:nth-child(4) {
+    animation-delay: 130ms;
+  }
+
+  .mobile-nav-link:nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .mobile-nav-link:nth-child(6) {
+    animation-delay: 190ms;
+  }
+
+  .mobile-nav-link:nth-child(7) {
+    animation-delay: 220ms;
+  }
+}
+
+@keyframes menu-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .hover-arrow {
