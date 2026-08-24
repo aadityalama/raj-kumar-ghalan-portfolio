@@ -427,20 +427,47 @@ export async function deleteExperienceAction(formData: FormData) {
   return { ok: true };
 }
 
-export async function saveSkillAction(formData: FormData) {
+export async function saveSkillAction(
+  boundId: string | null,
+  _prevState: { error?: string; ok?: boolean },
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
   const supabase = await adminClient();
-  const id = String(formData.get("id") || "");
+  // Prefer the id bound into the action (edit forms). Fall back to the hidden
+  // field so a plain form post still updates the correct row.
+  const id = String(boundId || formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const category = String(formData.get("category") || "").trim();
+  if (!name || !category) {
+    return { error: "Name and category are required." };
+  }
+
   const payload = {
-    name: String(formData.get("name") || ""),
-    category: String(formData.get("category") || ""),
+    name,
+    category,
     level: String(formData.get("level") || ""),
     visible: formData.get("visible") === "on",
     sort_order: Number(formData.get("sort_order") || 0),
   };
-  const { error } = id
-    ? await supabase.from("portfolio_skills").update(payload).eq("id", id)
-    : await supabase.from("portfolio_skills").insert(payload);
-  if (error) return { error: error.message };
+
+  if (id) {
+    // UPDATE only — never insert when editing. .select() so a 0-row match
+    // (bad id / RLS) surfaces as an error instead of a false "Saved."
+    const { data, error } = await supabase
+      .from("portfolio_skills")
+      .update(payload)
+      .eq("id", id)
+      .select("id");
+    if (error) return { error: error.message };
+    if (!data?.length) {
+      return { error: "Skill could not be updated. Refresh and try again." };
+    }
+  } else {
+    const { error } = await supabase.from("portfolio_skills").insert(payload);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/admin/skills");
   refreshPublic();
   return { ok: true };
 }

@@ -1,5 +1,6 @@
-import { ActionForm, ConfirmForm } from "@/app/admin/_components/form-status";
-import { deleteSkillAction, saveSkillAction } from "@/lib/cms/actions";
+import { ConfirmForm } from "@/app/admin/_components/form-status";
+import { SkillActionForm } from "@/app/admin/skills/skill-action-form";
+import { deleteSkillAction } from "@/lib/cms/actions";
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { getAdminCollections } from "@/lib/cms/admin-data";
 
@@ -11,7 +12,7 @@ export default async function AdminSkillsPage() {
     <div>
       <h1 className="text-4xl tracking-[-0.04em]">Skills</h1>
       <article className="admin-card mt-8 p-5">
-        <ActionForm action={saveSkillAction} className="grid gap-3 sm:grid-cols-2">
+        <SkillActionForm skillId={null} className="grid gap-3 sm:grid-cols-2">
           <input className="admin-input" name="name" placeholder="Skill" required />
           <input className="admin-input" name="category" placeholder="Category" required />
           <input className="admin-input" name="level" placeholder="Level (optional)" />
@@ -19,7 +20,7 @@ export default async function AdminSkillsPage() {
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="visible" defaultChecked /> Visible
           </label>
-        </ActionForm>
+        </SkillActionForm>
       </article>
       <div className="mt-8 overflow-x-auto admin-card">
         <table className="admin-table">
@@ -36,7 +37,7 @@ export default async function AdminSkillsPage() {
             {skills.map((skill) => (
               <tr key={skill.id}>
                 <td colSpan={5}>
-                  <ActionForm action={saveSkillAction} className="grid gap-3 sm:grid-cols-4">
+                  <SkillActionForm skillId={skill.id} className="grid gap-3 sm:grid-cols-4">
                     <input type="hidden" name="id" value={skill.id} />
                     <input className="admin-input" name="name" defaultValue={skill.name} />
                     <input className="admin-input" name="category" defaultValue={skill.category} />
@@ -45,7 +46,7 @@ export default async function AdminSkillsPage() {
                     <label className="flex items-center gap-2 text-sm">
                       <input type="checkbox" name="visible" defaultChecked={skill.visible} /> Visible
                     </label>
-                  </ActionForm>
+                  </SkillActionForm>
                   <ConfirmForm action={deleteSkillAction} label="Delete skill">
                     <input type="hidden" name="id" value={skill.id} />
                   </ConfirmForm>
