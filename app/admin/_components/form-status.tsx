@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type ActionResult = { error?: string; ok?: boolean } | void;
 
@@ -56,23 +57,49 @@ export function ConfirmForm({
   children,
   label,
   message = "Delete this item? This cannot be undone.",
+  pendingLabel,
 }: {
   action: (formData: FormData) => Promise<ActionResult>;
   children?: React.ReactNode;
   label: string;
   message?: string;
+  pendingLabel?: string;
 }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(
+    async (_prev: { error?: string; ok?: boolean }, formData: FormData) => {
+      const result = await action(formData);
+      return result ?? {};
+    },
+    {} as { error?: string; ok?: boolean },
+  );
+
+  useEffect(() => {
+    if (state?.ok) router.refresh();
+  }, [router, state?.ok]);
+
   return (
     <form
-      action={async (formData) => {
-        if (!window.confirm(message)) return;
-        await action(formData);
+      action={formAction}
+      onSubmit={(event) => {
+        if (!window.confirm(message)) {
+          event.preventDefault();
+        }
       }}
     >
       {children}
-      <button type="submit" className="text-sm text-red-400 hover:text-red-300">
-        {label}
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex min-h-11 items-center text-sm text-red-400 hover:text-red-300 disabled:opacity-60"
+      >
+        {pending ? pendingLabel || "Working…" : label}
       </button>
+      {state?.error ? (
+        <p className="mt-2 text-sm text-red-400" role="alert">
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

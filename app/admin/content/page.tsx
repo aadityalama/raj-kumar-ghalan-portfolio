@@ -1,12 +1,13 @@
 import Image from "next/image";
-import { ActionForm } from "@/app/admin/_components/form-status";
-import { saveSettingsAction } from "@/lib/cms/actions";
+import { ActionForm, ConfirmForm } from "@/app/admin/_components/form-status";
+import { deleteHeroImageAction, saveSettingsAction } from "@/lib/cms/actions";
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { getAdminCollections } from "@/lib/cms/admin-data";
 
 export default async function AdminContentPage() {
   await requireAdmin();
   const { settings } = await getAdminCollections();
+  const hasHeroPhoto = Boolean(settings.hero_image_url);
 
   return (
     <div>
@@ -14,13 +15,25 @@ export default async function AdminContentPage() {
       <p className="mt-3 max-w-2xl text-sm text-muted">
         Edit homepage, about, journey, philosophy, and YouTube copy. Changes appear on the live site after save.
       </p>
-      <ActionForm action={saveSettingsAction} className="mt-8 grid gap-5">
+
+      <div className="mt-8 grid gap-3">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">Homepage / profile</p>
-        {settings.hero_image_url ? (
-          <div className="relative h-32 w-24 overflow-hidden rounded-xl">
-            <Image src={settings.hero_image_url} alt="Current hero portrait" fill className="object-cover" sizes="96px" />
+        {hasHeroPhoto ? (
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="relative h-32 w-24 overflow-hidden rounded-xl">
+              <Image src={settings.hero_image_url} alt="Current hero portrait" fill className="object-cover" sizes="96px" />
+            </div>
+            <ConfirmForm
+              action={deleteHeroImageAction}
+              label="Remove photo"
+              pendingLabel="Removing…"
+              message="Remove the profile photo?"
+            />
           </div>
         ) : null}
+      </div>
+
+      <ActionForm action={saveSettingsAction} className="mt-5 grid gap-5">
         <label className="grid gap-2 text-sm">
           Hero / profile photo
           <input className="admin-input" type="file" name="hero_image" accept="image/jpeg,image/png,image/webp,image/gif" />
