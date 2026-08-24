@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/cms/admin-auth";
-import { MEDIA_BUCKET, storageObjectPath, validateImageFile } from "@/lib/cms/media";
+import { MEDIA_BUCKET, profileStoragePathFromUrl, storageObjectPath, validateImageFile } from "@/lib/cms/media";
 import { adminEmail, hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -107,7 +107,11 @@ export async function saveSettingsAction(formData: FormData) {
   if (heroFile instanceof File && heroFile.size > 0) {
     try {
       const uploaded = await uploadPublicImage("profile", heroFile);
+      const previousPath = profileStoragePathFromUrl(String(current?.hero_image_url || ""));
       payload.hero_image_url = uploaded.url;
+      if (previousPath && previousPath !== uploaded.path) {
+        await supabase.storage.from(MEDIA_BUCKET).remove([previousPath]);
+      }
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Image upload failed." };
     }
@@ -115,6 +119,36 @@ export async function saveSettingsAction(formData: FormData) {
 
   const { error } = await supabase.from("portfolio_settings").upsert(payload);
   if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function deleteHeroImageAction() {
+  const supabase = await adminClient();
+  const { data: current, error: readError } = await supabase
+    .from("portfolio_settings")
+    .select("hero_image_url")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (readError) return { error: readError.message };
+  if (!current?.hero_image_url) return { error: "No profile photo to remove." };
+
+  const storagePath = profileStoragePathFromUrl(current.hero_image_url);
+
+  const { error } = await supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("id", 1);
+  if (error) return { error: error.message };
+
+  if (storagePath) {
+    const { error: storageError } = await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+    if (storageError) {
+      refreshPublic();
+      return {
+        error: `Profile photo was cleared, but the storage file could not be deleted: ${storageError.message}`,
+      };
+    }
+  }
+
   refreshPublic();
   return { ok: true };
 }

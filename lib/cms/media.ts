@@ -27,3 +27,27 @@ export function storageObjectPath(kind: "gallery" | "projects" | "profile" | "so
   const ext = EXTENSIONS[file.type] || "jpg";
   return `${mediaFolder(kind)}/${crypto.randomUUID()}.${ext}`;
 }
+
+/** Resolve a portfolio-media storage object path from a public URL. Only returns `profile/` paths. */
+export function profileStoragePathFromUrl(url: string): string | null {
+  const value = url.trim();
+  if (!value) return null;
+
+  const publicMarker = `/storage/v1/object/public/${MEDIA_BUCKET}/`;
+  const markerIndex = value.indexOf(publicMarker);
+  let path = "";
+
+  if (markerIndex !== -1) {
+    path = decodeURIComponent(value.slice(markerIndex + publicMarker.length).split(/[?#]/)[0] || "");
+  } else if (value.startsWith("profile/")) {
+    path = value.split(/[?#]/)[0] || "";
+  } else {
+    return null;
+  }
+
+  if (!path.startsWith("profile/") || path.includes("..") || path.includes("//")) {
+    return null;
+  }
+
+  return path;
+}
