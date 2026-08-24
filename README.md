@@ -47,6 +47,7 @@ Set these in **Website → Environment variables** (not in the client bundle, ex
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Public anon key (`*` or use publishable key below) |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes* | Alternate to anon key on newer projects |
 | `ADMIN_EMAIL` | Recommended | Server-only allowlist; must match the Supabase Auth admin user and `002_grant_admin.sql`. If unset, the app falls back to `DESIGNATED_ADMIN_EMAIL` in `config/admin.ts`. |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | Yes (Hostinger) | Stable base64 AES key (`openssl rand -base64 32`). Must be present at **build** and runtime so Server Action IDs stay consistent across Redeploys. |
 
 Do **not** set `SUPABASE_SERVICE_ROLE_KEY`, passwords, or any admin secret as `NEXT_PUBLIC_*`.
 
@@ -61,4 +62,6 @@ After creating the Auth user for the designated admin email, run the SQL migrati
 | Output directory | `.next` |
 | Start command | leave Hostinger default for Next (do not point at a static `out/` folder) |
 
-Deploy from the Git branch that contains `app/admin/` (currently `cursor/personal-portfolio-site` or a PR merged into it). After changing env vars or the deploy branch, use Hostinger **Redeploy** / **Restart** so the standalone server picks up the admin routes.
+Deploy from the Git branch that contains `app/admin/` (currently `cursor/personal-portfolio-site` or a PR merged into it).
+
+After adding or changing `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (or other env vars), use Hostinger **Redeploy** (full rebuild), not only **Restart**. A restart reuses the old build output and will not embed a new encryption key. After Redeploy completes, hard-refresh `/admin/login` (or close old admin tabs) so the browser is not posting a stale Server Action ID.

@@ -4,13 +4,9 @@ import { useActionState } from "react";
 import { loginAction } from "@/lib/cms/actions";
 
 export function LoginForm() {
-  const [state, formAction, pending] = useActionState(
-    async (_prev: { error?: string }, formData: FormData) => {
-      const result = await loginAction(formData);
-      return result ?? {};
-    },
-    {} as { error?: string },
-  );
+  // Bind the Server Action directly so the client always posts the action ID
+  // from the current deployment (avoids an extra client wrapper around loginAction).
+  const [state, formAction, pending] = useActionState(loginAction, {} as { error?: string });
 
   return (
     <form action={formAction} className="mt-8 grid gap-4">
