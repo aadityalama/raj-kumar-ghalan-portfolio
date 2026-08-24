@@ -12,7 +12,10 @@ function refreshPublic() {
   revalidatePath("/admin", "layout");
 }
 
-export async function loginAction(formData: FormData) {
+export async function loginAction(
+  _prevState: { error?: string },
+  formData: FormData,
+): Promise<{ error?: string }> {
   if (!hasSupabaseEnv()) {
     return { error: "Supabase is not configured. Add the environment variables first." };
   }

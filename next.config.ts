@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   experimental: {
     // CMS image uploads allow 5MB files; default Server Action limit is 1MB.
+    // Keep Server Action IDs stable across Hostinger rebuilds by setting
+    // NEXT_SERVER_ACTIONS_ENCRYPTION_KEY in Hostinger env (build + runtime).
     serverActions: {
       bodySizeLimit: "8mb",
     },
