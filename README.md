@@ -52,4 +52,13 @@ Do **not** set `SUPABASE_SERVICE_ROLE_KEY`, passwords, or any admin secret as `N
 
 After creating the Auth user for the designated admin email, run the SQL migrations under `supabase/migrations/` (including `002_grant_admin.sql`) in that Supabase project. Disable public sign-up in Supabase Auth.
 
-Suggested Hostinger start command: `npm run start -- -p $PORT`.
+### Hostinger Node.js settings
+
+| Field | Value |
+| --- | --- |
+| Application type | `next` |
+| Build script | `build` |
+| Output directory | `.next` |
+| Start command | leave Hostinger default for Next (do not point at a static `out/` folder) |
+
+Deploy from the Git branch that contains `app/admin/` (currently `cursor/personal-portfolio-site` or a PR merged into it). After changing env vars or the deploy branch, use Hostinger **Redeploy** / **Restart** so the standalone server picks up the admin routes.
