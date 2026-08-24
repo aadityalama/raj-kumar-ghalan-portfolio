@@ -49,5 +49,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  // Include the exact /admin path and all nested admin routes.
+  matcher: ["/admin", "/admin/:path*"],
 };

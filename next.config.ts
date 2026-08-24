@@ -5,6 +5,9 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   : "placeholder.supabase.co";
 
 const nextConfig: NextConfig = {
+  // Hostinger Node.js Next apps run the standalone server. Setting this
+  // explicitly keeps local production builds aligned with Hostinger.
+  output: "standalone",
   experimental: {
     // CMS image uploads allow 5MB files; default Server Action limit is 1MB.
     serverActions: {

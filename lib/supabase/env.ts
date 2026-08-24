@@ -1,3 +1,5 @@
+import { DESIGNATED_ADMIN_EMAIL } from "@/config/admin";
+
 function publicSupabaseKey() {
   return (
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
@@ -19,7 +21,22 @@ export function requireSupabaseEnv() {
   return { url, anonKey };
 }
 
-/** Server-only allowlist. Never prefix ADMIN_EMAIL with NEXT_PUBLIC_. */
+/**
+ * Server-only admin allowlist.
+ * Prefer ADMIN_EMAIL from the host environment (Hostinger → Environment variables).
+ * Never prefix ADMIN_EMAIL with NEXT_PUBLIC_. Never put passwords or service-role keys here.
+ *
+ * Falls back to DESIGNATED_ADMIN_EMAIL so a missing ADMIN_EMAIL does not block
+ * production login for this single-admin site.
+ */
 export function adminEmail() {
-  return process.env.ADMIN_EMAIL?.trim().toLowerCase() || "";
+  // Bracket access keeps this a runtime lookup on the Node.js server.
+  const fromEnv = process.env["ADMIN_EMAIL"]?.trim().toLowerCase() || "";
+  if (fromEnv) return fromEnv;
+  return DESIGNATED_ADMIN_EMAIL.toLowerCase();
+}
+
+/** True when an admin allowlist email is available (env or designated fallback). */
+export function hasAdminEmail() {
+  return Boolean(adminEmail());
 }
