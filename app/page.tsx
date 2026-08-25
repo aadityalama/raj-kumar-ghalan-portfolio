@@ -6,7 +6,7 @@ import { CareerTimeline } from "@/components/sections/career-timeline";
 import { Contact } from "@/components/sections/contact";
 import { ContentCreation } from "@/components/sections/content-creation";
 import { Experience } from "@/components/sections/experience";
-import { LifeGallery } from "@/components/sections/life-gallery";
+import { GalleryCta } from "@/components/sections/gallery-cta";
 import { Market } from "@/components/sections/market";
 import { FeaturedProjects } from "@/components/sections/featured-projects";
 import { FireNepalCase } from "@/components/sections/fire-nepal-case";
@@ -43,7 +43,6 @@ export default async function Home() {
       <main id="main">
         <Hero settings={portfolio.settings} portrait={featuredPortrait(portfolio)} />
         {show("about") ? <About settings={portfolio.settings} /> : null}
-        {show("gallery") && portfolio.gallery.length ? <LifeGallery photos={portfolio.gallery} /> : null}
         {show("experience") ? (
           <Experience settings={portfolio.settings} items={portfolio.experience} />
         ) : null}
@@ -64,6 +63,7 @@ export default async function Home() {
         ) : null}
         <CareerTimeline />
         {show("philosophy") ? <Philosophy text={portfolio.settings.philosophy} /> : null}
+        {show("gallery") ? <GalleryCta /> : null}
         {show("contact") ? <Contact contact={portfolio.contact} socials={portfolio.socials} /> : null}
       </main>
       <SiteFooter
