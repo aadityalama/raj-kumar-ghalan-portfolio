@@ -39,8 +39,14 @@ export function SiteHeader({
   );
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [menuPathname, setMenuPathname] = useState(pathname);
   const [active, setActive] = useState("about");
   const menuId = useId();
+
+  if (menuPathname !== pathname) {
+    setMenuPathname(pathname);
+    setOpen(false);
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -105,10 +111,6 @@ export function SiteHeader({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   return (
     <>
