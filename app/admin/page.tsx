@@ -7,6 +7,7 @@ const actions = [
   { href: "/admin/content", label: "Edit homepage & about" },
   { href: "/admin/gallery", label: "Upload photos" },
   { href: "/admin/projects", label: "Add a project" },
+  { href: "/admin/product", label: "Edit product section" },
   { href: "/admin/market", label: "Update NEPSE profile" },
 ];
 
@@ -37,8 +38,9 @@ export default async function AdminHomePage() {
             </li>
             <li>
               Then run supabase/migrations/003_hero_image_and_storage_paths.sql,
-              supabase/migrations/004_admin_userid_only.sql, and
-              supabase/migrations/005_table_privileges.sql.
+              supabase/migrations/004_admin_userid_only.sql,
+              supabase/migrations/005_table_privileges.sql, and
+              supabase/migrations/006_product_section.sql.
             </li>
           </ul>
         </article>

@@ -4,6 +4,9 @@ import type {
   ContactRow,
   ExperienceRow,
   GalleryRow,
+  ProductCardRow,
+  ProductFeatureRow,
+  ProductSettingsRow,
   ProjectRow,
   SectionRow,
   SeoRow,
@@ -21,6 +24,7 @@ export async function getAdminDashboard() {
     photos: 0,
     skills: 0,
     sections: 0,
+    productCards: 0,
     source: "fallback" as const,
     configured: false,
     cmsReady: false,
@@ -30,22 +34,28 @@ export async function getAdminDashboard() {
   if (!hasSupabaseEnv()) return empty;
 
   const supabase = await createSupabaseServerClient();
-  const [projects, photos, skills, sections, settings, contact, seo, adminRow] = await Promise.all([
-    supabase.from("portfolio_projects").select("id,title,updated_at", { count: "exact" }),
-    supabase.from("portfolio_gallery").select("id,title,updated_at", { count: "exact" }),
-    supabase.from("portfolio_skills").select("id,name,updated_at", { count: "exact" }),
-    supabase.from("portfolio_sections").select("id,label,updated_at", { count: "exact" }),
-    supabase.from("portfolio_settings").select("updated_at").eq("id", 1).maybeSingle(),
-    supabase.from("portfolio_contact").select("updated_at").eq("id", 1).maybeSingle(),
-    supabase.from("portfolio_seo").select("updated_at").eq("id", 1).maybeSingle(),
-    supabase.from("portfolio_admins").select("user_id").eq("user_id", user.id).maybeSingle(),
-  ]);
+  const [projects, photos, skills, sections, settings, contact, seo, productCards, adminRow] =
+    await Promise.all([
+      supabase.from("portfolio_projects").select("id,title,updated_at", { count: "exact" }),
+      supabase.from("portfolio_gallery").select("id,title,updated_at", { count: "exact" }),
+      supabase.from("portfolio_skills").select("id,name,updated_at", { count: "exact" }),
+      supabase.from("portfolio_sections").select("id,label,updated_at", { count: "exact" }),
+      supabase.from("portfolio_settings").select("updated_at").eq("id", 1).maybeSingle(),
+      supabase.from("portfolio_contact").select("updated_at").eq("id", 1).maybeSingle(),
+      supabase.from("portfolio_seo").select("updated_at").eq("id", 1).maybeSingle(),
+      supabase.from("portfolio_product_cards").select("id,title,updated_at", { count: "exact" }),
+      supabase.from("portfolio_admins").select("user_id").eq("user_id", user.id).maybeSingle(),
+    ]);
 
   const recent = [
     ...(projects.data || []).map((item) => ({ label: `Project · ${item.title}`, at: item.updated_at || "" })),
     ...(photos.data || []).map((item) => ({ label: `Photo · ${item.title}`, at: item.updated_at || "" })),
     ...(skills.data || []).map((item) => ({ label: `Skill · ${item.name}`, at: item.updated_at || "" })),
     ...(sections.data || []).map((item) => ({ label: `Section · ${item.label}`, at: item.updated_at || "" })),
+    ...(productCards.data || []).map((item) => ({
+      label: `Product · ${item.title}`,
+      at: item.updated_at || "",
+    })),
     ...(settings.data?.updated_at ? [{ label: "Website content", at: settings.data.updated_at }] : []),
     ...(contact.data?.updated_at ? [{ label: "Contact", at: contact.data.updated_at }] : []),
     ...(seo.data?.updated_at ? [{ label: "SEO", at: seo.data.updated_at }] : []),
@@ -59,6 +69,7 @@ export async function getAdminDashboard() {
     photos: photos.count || 0,
     skills: skills.count || 0,
     sections: sections.count || 0,
+    productCards: productCards.count || 0,
     source: "cms" as const,
     configured: true,
     cmsReady: Boolean(settings.data) && !settings.error,
@@ -81,12 +92,28 @@ export async function getAdminCollections() {
       socials: fallback.socials,
       contact: fallback.contact,
       seo: fallback.seo,
+      productSettings: fallback.productSettings,
+      productCards: fallback.productCards,
+      productFeatures: fallback.productFeatures,
       configured: false,
     };
   }
 
   const supabase = await createSupabaseServerClient();
-  const [settings, sections, gallery, projects, experience, skills, socials, contact, seo] = await Promise.all([
+  const [
+    settings,
+    sections,
+    gallery,
+    projects,
+    experience,
+    skills,
+    socials,
+    contact,
+    seo,
+    productSettings,
+    productCards,
+    productFeatures,
+  ] = await Promise.all([
     supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle(),
     supabase.from("portfolio_sections").select("*").order("sort_order"),
     supabase.from("portfolio_gallery").select("*").order("sort_order"),
@@ -96,6 +123,9 @@ export async function getAdminCollections() {
     supabase.from("portfolio_social_links").select("*").order("sort_order"),
     supabase.from("portfolio_contact").select("*").eq("id", 1).maybeSingle(),
     supabase.from("portfolio_seo").select("*").eq("id", 1).maybeSingle(),
+    supabase.from("portfolio_product_settings").select("*").eq("id", 1).maybeSingle(),
+    supabase.from("portfolio_product_cards").select("*").order("sort_order"),
+    supabase.from("portfolio_product_features").select("*").order("sort_order"),
   ]);
 
   return {
@@ -108,6 +138,13 @@ export async function getAdminCollections() {
     socials: (socials.data as SocialRow[]) || fallback.socials,
     contact: (contact.data as ContactRow) || fallback.contact,
     seo: (seo.data as SeoRow) || fallback.seo,
+    productSettings: (productSettings.data as ProductSettingsRow) || fallback.productSettings,
+    productCards: productCards.error
+      ? fallback.productCards
+      : ((productCards.data as ProductCardRow[]) || fallback.productCards),
+    productFeatures: productFeatures.error
+      ? fallback.productFeatures
+      : ((productFeatures.data as ProductFeatureRow[]) || fallback.productFeatures),
     configured: true,
   };
 }

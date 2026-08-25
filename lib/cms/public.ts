@@ -3,7 +3,9 @@ import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
 import type {
   ContactRow,
   ExperienceRow,
-  GalleryRow,
+  ProductCardRow,
+  ProductFeatureRow,
+  ProductSettingsRow,
   ProjectRow,
   PublicPortfolio,
   SectionRow,
@@ -11,6 +13,7 @@ import type {
   SettingsRow,
   SkillRow,
   SocialRow,
+  GalleryRow,
 } from "@/lib/cms/types";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -54,6 +57,9 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       socialsRes,
       contactRes,
       seoRes,
+      productSettingsRes,
+      productCardsRes,
+      productFeaturesRes,
     ] = await Promise.all([
       supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle(),
       supabase.from("portfolio_sections").select("*").eq("visible", true).order("sort_order"),
@@ -63,6 +69,9 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       supabase.from("portfolio_social_links").select("*").eq("visible", true).order("sort_order"),
       supabase.from("portfolio_contact").select("*").eq("id", 1).maybeSingle(),
       supabase.from("portfolio_seo").select("*").eq("id", 1).maybeSingle(),
+      supabase.from("portfolio_product_settings").select("*").eq("id", 1).maybeSingle(),
+      supabase.from("portfolio_product_cards").select("*").eq("visible", true).order("sort_order"),
+      supabase.from("portfolio_product_features").select("*").eq("visible", true).order("sort_order"),
     ]);
 
     const hasCms =
@@ -76,6 +85,9 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       };
     }
 
+    const productCardsError = Boolean(productCardsRes.error);
+    const productFeaturesError = Boolean(productFeaturesRes.error);
+
     return {
       settings: (settingsRes.data as SettingsRow) || fallback.settings,
       sections: ((sectionsRes.data as SectionRow[]) || fallback.sections).filter((item) => item.visible),
@@ -86,6 +98,14 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       socials: ((socialsRes.data as SocialRow[]) || fallback.socials).filter((item) => item.href),
       contact: (contactRes.data as ContactRow) || fallback.contact,
       seo: (seoRes.data as SeoRow) || fallback.seo,
+      productSettings:
+        (productSettingsRes.data as ProductSettingsRow) || fallback.productSettings,
+      productCards: productCardsError
+        ? fallback.productCards
+        : ((productCardsRes.data as ProductCardRow[]) || fallback.productCards),
+      productFeatures: productFeaturesError
+        ? fallback.productFeatures
+        : ((productFeaturesRes.data as ProductFeatureRow[]) || fallback.productFeatures),
       source: "cms",
     };
   } catch {

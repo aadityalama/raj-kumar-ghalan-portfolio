@@ -53,7 +53,14 @@ export default async function Home() {
           />
         ) : null}
         {show("projects") ? <FeaturedProjects items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)} /> : null}
-        {show("projects") && fireNepal ? <FireNepalCase liveUrl={fireNepal.live_url} /> : null}
+        {show("projects") && fireNepal ? (
+          <FireNepalCase
+            liveUrl={fireNepal.live_url}
+            sectionTitle={portfolio.productSettings.section_title}
+            productCards={portfolio.productCards}
+            productFeatures={portfolio.productFeatures}
+          />
+        ) : null}
         {show("projects") ? (
           <OtherProjects items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)} />
         ) : null}

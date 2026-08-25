@@ -13,6 +13,9 @@ import type {
   ContactRow,
   ExperienceRow,
   GalleryRow,
+  ProductCardRow,
+  ProductFeatureRow,
+  ProductSettingsRow,
   ProjectRow,
   PublicPortfolio,
   SectionRow,
@@ -195,6 +198,35 @@ export function defaultSeo(): SeoRow {
   };
 }
 
+export function defaultProductSettings(): ProductSettingsRow {
+  return {
+    section_title: "The Product",
+  };
+}
+
+export function defaultProductCards(): ProductCardRow[] {
+  return projects.fireNepal.visuals.map((visual, index) => ({
+    id: `fallback-product-card-${index}`,
+    title: visual.caption,
+    description: visual.alt,
+    image_url: visual.src,
+    image_path: null,
+    link_url: "",
+    visible: true,
+    sort_order: (index + 1) * 10,
+  }));
+}
+
+export function defaultProductFeatures(): ProductFeatureRow[] {
+  return projects.fireNepal.productAreas.map((title, index) => ({
+    id: `fallback-product-feature-${index}`,
+    title,
+    description: "",
+    visible: true,
+    sort_order: (index + 1) * 10,
+  }));
+}
+
 export function fallbackPortfolio(): PublicPortfolio {
   return {
     settings: defaultSettings(),
@@ -206,6 +238,9 @@ export function fallbackPortfolio(): PublicPortfolio {
     socials: defaultSocials().filter((item) => item.visible && item.href),
     contact: defaultContact(),
     seo: defaultSeo(),
+    productSettings: defaultProductSettings(),
+    productCards: defaultProductCards(),
+    productFeatures: defaultProductFeatures(),
     source: "fallback",
   };
 }

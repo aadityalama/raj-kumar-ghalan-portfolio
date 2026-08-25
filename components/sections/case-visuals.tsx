@@ -2,18 +2,26 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { projects } from "@/config/site";
 import { Lightbox } from "@/components/ui/lightbox";
+import type { ProductCardRow } from "@/lib/cms/types";
 
-export function CaseVisuals() {
-  const photos = projects.fireNepal.visuals;
+export function CaseVisuals({ cards }: { cards: ProductCardRow[] }) {
+  const photos = cards
+    .filter((card) => card.image_url)
+    .map((card) => ({
+      src: card.image_url,
+      alt: card.description || card.title,
+      caption: card.title,
+    }));
   const [open, setOpen] = useState<number | null>(null);
+
+  if (!photos.length) return null;
 
   return (
     <>
       <ul className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {photos.map((photo, index) => (
-          <li key={photo.src}>
+          <li key={`${photo.src}-${photo.caption}-${index}`}>
             <button
               type="button"
               onClick={() => setOpen(index)}
