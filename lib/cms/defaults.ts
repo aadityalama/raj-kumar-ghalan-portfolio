@@ -235,6 +235,7 @@ export function defaultExperience(): ExperienceRow[] {
     {
       id: "fallback-experience",
       company: experience.company,
+      company_logo_url: "",
       position: experience.role,
       start_year: "",
       end_year: "Present",

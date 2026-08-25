@@ -19,7 +19,7 @@ export function validateImageFile(file: File) {
   return null;
 }
 
-export type MediaKind = "gallery" | "projects" | "product" | "profile" | "social" | "brand";
+export type MediaKind = "gallery" | "projects" | "product" | "profile" | "social" | "brand" | "experience";
 
 export function mediaFolder(kind: MediaKind) {
   return kind;

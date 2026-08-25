@@ -1,4 +1,5 @@
 import { ActionForm, ConfirmForm } from "@/app/admin/_components/form-status";
+import { CompanyLogoFields } from "@/app/admin/experience/company-logo-fields";
 import { deleteExperienceAction, saveExperienceAction } from "@/lib/cms/actions";
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { getAdminCollections } from "@/lib/cms/admin-data";
@@ -15,6 +16,7 @@ export default async function AdminExperiencePage() {
         <ActionForm action={saveExperienceAction} className="mt-4 grid gap-3 sm:grid-cols-2">
           <input className="admin-input" name="company" placeholder="Company" required />
           <input className="admin-input" name="position" placeholder="Position" required />
+          <CompanyLogoFields />
           <input className="admin-input" name="start_year" placeholder="Start year" />
           <input className="admin-input" name="end_year" placeholder="End year or Present" />
           <textarea className="admin-textarea sm:col-span-2" name="description" placeholder="Description" />
@@ -32,6 +34,7 @@ export default async function AdminExperiencePage() {
               <input type="hidden" name="id" value={item.id} />
               <input className="admin-input" name="company" defaultValue={item.company} />
               <input className="admin-input" name="position" defaultValue={item.position} />
+              <CompanyLogoFields defaultUrl={item.company_logo_url || ""} />
               <input className="admin-input" name="start_year" defaultValue={item.start_year} />
               <input className="admin-input" name="end_year" defaultValue={item.end_year} />
               <textarea className="admin-textarea sm:col-span-2" name="description" defaultValue={item.description} />

@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { fallbackPortfolio } from "@/lib/cms/defaults";
+import { normalizeExperienceRows } from "@/lib/cms/experience";
 import type {
   ContactRow,
   ExperienceRow,
@@ -133,7 +134,7 @@ export async function getAdminCollections() {
     sections: (sections.data as SectionRow[]) || fallback.sections,
     gallery: (gallery.data as GalleryRow[]) || fallback.gallery,
     projects: (projects.data as ProjectRow[]) || fallback.projects,
-    experience: (experience.data as ExperienceRow[]) || fallback.experience,
+    experience: normalizeExperienceRows(experience.data as ExperienceRow[] | null, fallback.experience),
     skills: (skills.data as SkillRow[]) || fallback.skills,
     socials: (socials.data as SocialRow[]) || fallback.socials,
     contact: (contact.data as ContactRow) || fallback.contact,

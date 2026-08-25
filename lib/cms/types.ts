@@ -110,6 +110,7 @@ export type ProjectRow = {
 export type ExperienceRow = {
   id: string;
   company: string;
+  company_logo_url: string;
   position: string;
   start_year: string;
   end_year: string;
