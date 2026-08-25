@@ -42,10 +42,11 @@ In the Supabase SQL editor, run migrations in order:
 6. `006_gallery_page_nav.sql`
 7. `006_product_section.sql`
 8. `007_productize_multitenant.sql`
+9. `008_portfolio_settings_branding.sql` (**required** for Setup Wizard Name/Settings branding fields)
 
 For a **new commercial demo**, optionally run `supabase/seeds/demo_content.sql` after migrations.
 
-For an **existing personal production database**, apply additive migrations only. Do not load demo seed content over live data.
+For an **existing personal production database**, apply additive migrations only (`007`, then `008`). Do not load demo seed content over live data. After `008`, refresh PostgREST with `NOTIFY pgrst, 'reload schema';` if the API still reports missing columns.
 
 ## 4. Create the admin Auth user
 
