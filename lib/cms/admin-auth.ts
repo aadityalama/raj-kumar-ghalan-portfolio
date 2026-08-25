@@ -56,36 +56,36 @@ export async function requireAdmin() {
 /**
  * Resolve the editable site from the authenticated user (never from client site_id).
  * Owner admins keep the owner site; other admins get an isolated customer site.
+ * Resolution failures are thrown (not converted into a silent login loop) so Admin can surface them.
  */
 export async function requireSiteEditor() {
   const user = await requireAdmin();
   const supabase = await createSupabaseServerClient();
 
-  try {
-    const site = await resolveAdminSite(user);
-    assertSiteId(site.id);
+  const site = await resolveAdminSite(user);
+  assertSiteId(site.id);
 
-    // Ensure membership for the resolved site (server-side only; never trust client site_id).
-    const { error: memberError } = await supabase.from("portfolio_site_members").upsert({
-      site_id: site.id,
-      user_id: user.id,
-      role: "owner",
-    });
-    if (memberError) {
-      // Membership may already exist; RLS may block duplicate paths — re-check.
-      const { data: membership } = await supabase
-        .from("portfolio_site_members")
-        .select("site_id")
-        .eq("site_id", site.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!membership) redirect("/admin/login");
+  // Ensure membership for the resolved site (server-side only; never trust client site_id).
+  const { error: memberError } = await supabase.from("portfolio_site_members").upsert({
+    site_id: site.id,
+    user_id: user.id,
+    role: "owner",
+  });
+  if (memberError) {
+    const { data: membership } = await supabase
+      .from("portfolio_site_members")
+      .select("site_id")
+      .eq("site_id", site.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) {
+      throw new Error(
+        `Could not ensure site membership for ${site.slug || site.id}: ${memberError.message}`,
+      );
     }
-
-    return { user, supabase, site, siteId: site.id as string };
-  } catch {
-    redirect("/admin/login");
   }
+
+  return { user, supabase, site, siteId: site.id as string };
 }
 
 /** Public site for rendering — host/domain first, never a client site_id. */

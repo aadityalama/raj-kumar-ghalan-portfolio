@@ -1,6 +1,12 @@
 import { requireAdmin } from "@/lib/cms/admin-auth";
-import { fallbackPortfolio } from "@/lib/cms/defaults";
-import { assertSiteId, resolveAdminSite } from "@/lib/cms/site";
+import { emptyResolvedPortfolio } from "@/lib/cms/defaults";
+import {
+  assertSiteId,
+  contentHasSiteId,
+  isOwnerSiteRecord,
+  resolveAdminSite,
+  type ResolvedSite,
+} from "@/lib/cms/site";
 import type {
   ContactRow,
   ExperienceRow,
@@ -18,6 +24,9 @@ import type {
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+const SITE_ID_REQUIRED =
+  "Database is missing site_id isolation columns. Apply supabase/migrations/007_productize_multitenant.sql (additive backfill; does not delete owner content), then NOTIFY pgrst, 'reload schema'.";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase builder generics blow the TS recursion limit
 function scoped(query: any, siteId: string) {
   return query.eq("site_id", siteId);
@@ -26,17 +35,37 @@ function scoped(query: any, siteId: string) {
 async function adminSiteContext() {
   const user = await requireAdmin();
   if (!hasSupabaseEnv()) {
-    return { user, siteId: null as string | null, supabase: null as null };
+    return {
+      user,
+      site: null as ResolvedSite | null,
+      siteId: null as string | null,
+      supabase: null as null,
+      error: "Supabase is not configured.",
+    };
   }
+
   const supabase = await createSupabaseServerClient();
+  if (!(await contentHasSiteId())) {
+    return {
+      user,
+      site: null as ResolvedSite | null,
+      siteId: null as string | null,
+      supabase,
+      error: SITE_ID_REQUIRED,
+    };
+  }
+
   const site = await resolveAdminSite(user);
   assertSiteId(site.id);
+
+  // Ensure membership (idempotent). Never rewrite content rows.
   await supabase.from("portfolio_site_members").upsert({
     site_id: site.id,
     user_id: user.id,
     role: "owner",
   });
-  return { user, siteId: site.id, supabase };
+
+  return { user, site, siteId: site.id, supabase, error: null as string | null };
 }
 
 export async function getAdminDashboard() {
@@ -51,12 +80,17 @@ export async function getAdminDashboard() {
     cmsReady: false,
     adminGranted: false,
     siteId: null as string | null,
+    siteSlug: null as string | null,
+    isOwnerSite: false,
+    resolutionError: null as string | null,
     recent: [] as Array<{ label: string; at: string }>,
   };
 
   try {
-    const { user, siteId, supabase } = await adminSiteContext();
-    if (!siteId || !supabase) return empty;
+    const { user, site, siteId, supabase, error } = await adminSiteContext();
+    if (!siteId || !supabase) {
+      return { ...empty, configured: hasSupabaseEnv(), resolutionError: error };
+    }
 
     const [projects, photos, skills, sections, settings, contact, seo, productCards, adminRow] =
       await Promise.all([
@@ -73,6 +107,14 @@ export async function getAdminDashboard() {
         ),
         supabase.from("portfolio_admins").select("user_id").eq("user_id", user.id).maybeSingle(),
       ]);
+
+    const queryErrors = [
+      projects.error?.message,
+      photos.error?.message,
+      skills.error?.message,
+      sections.error?.message,
+      settings.error?.message,
+    ].filter(Boolean);
 
     const recent = [
       ...(projects.data || []).map((item: { title: string; updated_at?: string | null }) => ({
@@ -114,35 +156,36 @@ export async function getAdminDashboard() {
       cmsReady: Boolean(settings.data) && !settings.error,
       adminGranted: Boolean(adminRow.data) && !adminRow.error,
       siteId,
+      siteSlug: site?.slug || null,
+      isOwnerSite: isOwnerSiteRecord(site),
+      resolutionError: queryErrors.length ? queryErrors.join(" | ") : null,
       recent,
     };
-  } catch {
-    return empty;
+  } catch (error) {
+    return {
+      ...empty,
+      configured: hasSupabaseEnv(),
+      resolutionError: error instanceof Error ? error.message : "Admin site resolution failed.",
+    };
   }
 }
 
 export async function getAdminCollections() {
-  const fallback = fallbackPortfolio();
-  const empty = {
-    settings: fallback.settings,
-    sections: fallback.sections,
-    gallery: fallback.gallery,
-    projects: fallback.projects,
-    experience: fallback.experience,
-    skills: fallback.skills,
-    socials: fallback.socials,
-    contact: fallback.contact,
-    seo: fallback.seo,
-    productSettings: fallback.productSettings,
-    productCards: fallback.productCards,
-    productFeatures: fallback.productFeatures,
-    configured: false,
-    siteId: null as string | null,
-  };
-
   try {
-    const { siteId, supabase } = await adminSiteContext();
-    if (!siteId || !supabase) return empty;
+    const { site, siteId, supabase, error } = await adminSiteContext();
+    if (!siteId || !supabase) {
+      return {
+        ...emptyResolvedPortfolio(null, error || "Admin site could not be resolved."),
+        configured: false,
+        siteId: null,
+        siteSlug: null,
+        isOwnerSite: false,
+        resolutionError: error || "Admin site could not be resolved.",
+        source: "error" as const,
+      };
+    }
+
+    const ownerSite = isOwnerSiteRecord(site);
 
     const [
       settings,
@@ -172,27 +215,74 @@ export async function getAdminCollections() {
       scoped(supabase.from("portfolio_product_features").select("*").order("sort_order"), siteId),
     ]);
 
+    const errors = [
+      settings.error?.message,
+      sections.error?.message,
+      experience.error?.message,
+      projects.error?.message,
+      skills.error?.message,
+    ].filter(Boolean) as string[];
+
+    // NEVER substitute neutral demo company rows for failed/missing reads.
+    const blank = emptyResolvedPortfolio(site, errors.join(" | ") || "");
+
+    if (errors.length && ownerSite) {
+      return {
+        settings: (settings.data as SettingsRow) || blank.settings,
+        sections: sections.error ? [] : ((sections.data as SectionRow[]) || []),
+        gallery: gallery.error ? [] : ((gallery.data as GalleryRow[]) || []),
+        projects: projects.error ? [] : ((projects.data as ProjectRow[]) || []),
+        experience: experience.error ? [] : ((experience.data as ExperienceRow[]) || []),
+        skills: skills.error ? [] : ((skills.data as SkillRow[]) || []),
+        socials: socials.error ? [] : ((socials.data as SocialRow[]) || []),
+        contact: (contact.data as ContactRow) || blank.contact,
+        seo: (seo.data as SeoRow) || blank.seo,
+        productSettings: (productSettings.data as ProductSettingsRow) || blank.productSettings,
+        productCards: productCards.error ? [] : ((productCards.data as ProductCardRow[]) || []),
+        productFeatures: productFeatures.error
+          ? []
+          : ((productFeatures.data as ProductFeatureRow[]) || []),
+        configured: true,
+        siteId,
+        siteSlug: site?.slug || null,
+        isOwnerSite: true,
+        resolutionError: errors.join(" | "),
+        source: "error" as const,
+      };
+    }
+
     return {
-      settings: (settings.data as SettingsRow) || fallback.settings,
-      sections: (sections.data as SectionRow[]) || fallback.sections,
-      gallery: (gallery.data as GalleryRow[]) || fallback.gallery,
-      projects: (projects.data as ProjectRow[]) || fallback.projects,
-      experience: (experience.data as ExperienceRow[]) || fallback.experience,
-      skills: (skills.data as SkillRow[]) || fallback.skills,
-      socials: (socials.data as SocialRow[]) || fallback.socials,
-      contact: (contact.data as ContactRow) || fallback.contact,
-      seo: (seo.data as SeoRow) || fallback.seo,
-      productSettings: (productSettings.data as ProductSettingsRow) || fallback.productSettings,
-      productCards: productCards.error
-        ? fallback.productCards
-        : ((productCards.data as ProductCardRow[]) || fallback.productCards),
+      settings: (settings.data as SettingsRow) || blank.settings,
+      sections: (sections.data as SectionRow[]) || [],
+      gallery: (gallery.data as GalleryRow[]) || [],
+      projects: (projects.data as ProjectRow[]) || [],
+      experience: (experience.data as ExperienceRow[]) || [],
+      skills: (skills.data as SkillRow[]) || [],
+      socials: (socials.data as SocialRow[]) || [],
+      contact: (contact.data as ContactRow) || blank.contact,
+      seo: (seo.data as SeoRow) || blank.seo,
+      productSettings: (productSettings.data as ProductSettingsRow) || blank.productSettings,
+      productCards: productCards.error ? [] : ((productCards.data as ProductCardRow[]) || []),
       productFeatures: productFeatures.error
-        ? fallback.productFeatures
-        : ((productFeatures.data as ProductFeatureRow[]) || fallback.productFeatures),
+        ? []
+        : ((productFeatures.data as ProductFeatureRow[]) || []),
       configured: true,
       siteId,
+      siteSlug: site?.slug || null,
+      isOwnerSite: ownerSite,
+      resolutionError: errors.length ? errors.join(" | ") : null,
+      source: "cms" as const,
     };
-  } catch {
-    return empty;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Admin site resolution failed.";
+    return {
+      ...emptyResolvedPortfolio(null, message),
+      configured: hasSupabaseEnv(),
+      siteId: null,
+      siteSlug: null,
+      isOwnerSite: false,
+      resolutionError: message,
+      source: "error" as const,
+    };
   }
 }

@@ -231,6 +231,8 @@ export type PublicPortfolio = {
   productSettings: ProductSettingsRow;
   productCards: ProductCardRow[];
   productFeatures: ProductFeatureRow[];
-  source: "cms" | "fallback";
+  /** cms = DB rows; error = resolution/query failure (never silent demo); fallback = env missing only */
+  source: "cms" | "fallback" | "error";
   site?: SiteRow | null;
+  resolutionError?: string;
 };

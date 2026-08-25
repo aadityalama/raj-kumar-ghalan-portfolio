@@ -48,6 +48,15 @@ export default async function Home() {
       <SiteHeader items={items} wordmark={wordmark} />
       <Cursor />
       <main id="main">
+        {portfolio.source === "error" && portfolio.resolutionError ? (
+          <div className="border-b border-red-500/30 bg-bg-card px-6 py-4 text-sm text-muted">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">
+              Portfolio CMS
+            </p>
+            <p className="mt-2 text-text">Content could not be loaded from the database.</p>
+            <p className="mt-2 font-mono text-xs text-red-200">{portfolio.resolutionError}</p>
+          </div>
+        ) : null}
         <Hero settings={portfolio.settings} portrait={featuredPortrait(portfolio)} />
         {show("about") ? <About settings={portfolio.settings} /> : null}
         {show("experience") ? (
