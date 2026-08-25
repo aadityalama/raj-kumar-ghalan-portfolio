@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "verify:settings-schema": "npx tsx scripts/verify-settings-schema.ts"
+    "verify:settings-schema": "npx tsx scripts/verify-settings-schema.ts",
+    "verify:site-isolation": "npx tsx scripts/verify-site-isolation.ts",
+    "test": "npm run verify:site-isolation"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

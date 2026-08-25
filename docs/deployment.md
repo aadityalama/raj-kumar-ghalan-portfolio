@@ -23,11 +23,14 @@ Set these in **Website → Environment variables**:
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Public anon key (*or publishable key) |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes* | Alternate public key |
-| `ADMIN_EMAIL` | Yes | Server-only admin allowlist |
+| `ADMIN_EMAIL` | Yes | Server-only primary admin allowlist |
+| `OWNER_ADMIN_EMAIL` | Optional | Defaults to `ADMIN_EMAIL`; marks the owner of the preserved production site |
 | `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | Yes | `openssl rand -base64 32` — required at **build** and runtime |
-| `PORTFOLIO_SITE_SLUG` | Optional | Defaults to `default` |
+| `PORTFOLIO_SITE_SLUG` | Optional | Deploy pin when Host is not in `portfolio_site_domains` |
 
-Never set `SUPABASE_SERVICE_ROLE_KEY`, passwords, or admin secrets as `NEXT_PUBLIC_*`.
+Public routing: Host → `portfolio_site_domains` → `PORTFOLIO_SITE_SLUG` → owner site (`is_owner_site`). Website name / brand fields are content only and never change domain routing.
+
+Apply `009_site_isolation.sql` before multi-customer demos. Never grant customers onto the owner/`default` site — use `supabase/seeds/grant_admin.example.sql`.
 
 ## Redeploy vs restart
 

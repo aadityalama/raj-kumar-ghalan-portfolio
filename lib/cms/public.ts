@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { brandDisplayName } from "@/lib/cms/branding";
 import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
-import { getCurrentSite, isLegacySiteId } from "@/lib/cms/site";
+import { resolvePublicSite } from "@/lib/cms/site";
 import type {
   ContactRow,
   ExperienceRow,
@@ -21,8 +21,7 @@ import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase builder generics blow the TS recursion limit
-function withSiteFilter(query: any, siteId: string | null) {
-  if (!siteId || isLegacySiteId(siteId)) return query;
+function withSiteFilter(query: any, siteId: string) {
   return query.eq("site_id", siteId);
 }
 
@@ -30,15 +29,14 @@ export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
   if (!hasSupabaseEnv()) return defaultGallery();
 
   try {
-    const site = await getCurrentSite();
+    const site = await resolvePublicSite();
+    if (!site?.id) return defaultGallery();
+
     const supabase = await createSupabaseServerClient();
-    let query = supabase
-      .from("portfolio_gallery")
-      .select("*")
-      .eq("visible", true)
-      .order("sort_order");
-    query = withSiteFilter(query, site?.id || null);
-    const { data } = await query;
+    const { data } = await withSiteFilter(
+      supabase.from("portfolio_gallery").select("*").eq("visible", true).order("sort_order"),
+      site.id,
+    );
 
     if (data && data.length > 0) return data as GalleryRow[];
     return defaultGallery();
@@ -57,23 +55,16 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
   }
 
   try {
-    const site = await getCurrentSite();
-    const siteId = site?.id || null;
-    const supabase = await createSupabaseServerClient();
+    const site = await resolvePublicSite();
+    if (!site?.id) {
+      return {
+        ...fallback,
+        gallery: [],
+      };
+    }
 
-    const settingsQuery = withSiteFilter(
-      supabase.from("portfolio_settings").select("*"),
-      siteId,
-    );
-    const contactQuery = withSiteFilter(
-      supabase.from("portfolio_contact").select("*"),
-      siteId,
-    );
-    const seoQuery = withSiteFilter(supabase.from("portfolio_seo").select("*"), siteId);
-    const productSettingsQuery = withSiteFilter(
-      supabase.from("portfolio_product_settings").select("*"),
-      siteId,
-    );
+    const siteId = site.id;
+    const supabase = await createSupabaseServerClient();
 
     const [
       settingsRes,
@@ -88,9 +79,7 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       productCardsRes,
       productFeaturesRes,
     ] = await Promise.all([
-      isLegacySiteId(siteId)
-        ? supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle()
-        : settingsQuery.maybeSingle(),
+      withSiteFilter(supabase.from("portfolio_settings").select("*"), siteId).maybeSingle(),
       withSiteFilter(
         supabase.from("portfolio_sections").select("*").eq("visible", true).order("sort_order"),
         siteId,
@@ -99,31 +88,18 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
         supabase.from("portfolio_projects").select("*").eq("published", true).order("sort_order"),
         siteId,
       ),
-      withSiteFilter(
-        supabase.from("portfolio_experience").select("*").order("sort_order"),
-        siteId,
-      ),
+      withSiteFilter(supabase.from("portfolio_experience").select("*").order("sort_order"), siteId),
       withSiteFilter(
         supabase.from("portfolio_skills").select("*").eq("visible", true).order("sort_order"),
         siteId,
       ),
       withSiteFilter(
-        supabase
-          .from("portfolio_social_links")
-          .select("*")
-          .eq("visible", true)
-          .order("sort_order"),
+        supabase.from("portfolio_social_links").select("*").eq("visible", true).order("sort_order"),
         siteId,
       ),
-      isLegacySiteId(siteId)
-        ? supabase.from("portfolio_contact").select("*").eq("id", 1).maybeSingle()
-        : contactQuery.maybeSingle(),
-      isLegacySiteId(siteId)
-        ? supabase.from("portfolio_seo").select("*").eq("id", 1).maybeSingle()
-        : seoQuery.maybeSingle(),
-      isLegacySiteId(siteId)
-        ? supabase.from("portfolio_product_settings").select("*").eq("id", 1).maybeSingle()
-        : productSettingsQuery.maybeSingle(),
+      withSiteFilter(supabase.from("portfolio_contact").select("*"), siteId).maybeSingle(),
+      withSiteFilter(supabase.from("portfolio_seo").select("*"), siteId).maybeSingle(),
+      withSiteFilter(supabase.from("portfolio_product_settings").select("*"), siteId).maybeSingle(),
       withSiteFilter(
         supabase.from("portfolio_product_cards").select("*").eq("visible", true).order("sort_order"),
         siteId,
@@ -253,7 +229,6 @@ export function groupedSkills(skills: SkillRow[]) {
   }, {});
 }
 
-/** Ordered homepage sections for the simple section manager / renderer. */
 export function orderedHomeSections(portfolio: PublicPortfolio) {
   const keys = [
     "about",

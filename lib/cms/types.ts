@@ -18,6 +18,7 @@ export type SiteRow = {
   name: string;
   plan_tier: "demo" | "starter" | "pro" | "agency";
   onboarding_completed: boolean;
+  is_owner_site?: boolean;
   created_at?: string;
   updated_at?: string;
 };
