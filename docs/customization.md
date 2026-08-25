@@ -32,9 +32,9 @@ Arbitrary CSS injection is intentionally blocked. Accent values are sanitized to
 
 ## Template defaults
 
-`config/site.ts` and `lib/cms/defaults.ts` contain **neutral demo placeholders** used when Supabase is empty or unavailable.
+`config/site.ts` and `lib/cms/defaults.ts` hold the **owner portfolio** (Raj Kumar Ghalan) offline/fallback content used when Supabase is empty or unavailable for that site.
 
-Do not put customer secrets or personal credentials in those files.
+Customer sites load only their own CMS rows (scoped by `site_id`). New customer installs use Admin onboarding / optional demo seed — never overwrite the owner site.
 
 ## Design system
 

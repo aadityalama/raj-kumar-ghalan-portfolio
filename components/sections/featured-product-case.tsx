@@ -138,6 +138,3 @@ export function FeaturedProductCase({
     </section>
   );
 }
-
-/** @deprecated Use FeaturedProductCase — kept for import compatibility during migration. */
-export { FeaturedProductCase as FireNepalCase };

@@ -10,6 +10,7 @@ import { GalleryCta } from "@/components/sections/gallery-cta";
 import { Market } from "@/components/sections/market";
 import { FeaturedProjects } from "@/components/sections/featured-projects";
 import { FeaturedProductCase } from "@/components/sections/featured-product-case";
+import { FireNepalCase } from "@/components/sections/fire-nepal-case";
 import { Hero } from "@/components/sections/hero";
 import { OtherProjects } from "@/components/sections/other-projects";
 import { Philosophy } from "@/components/sections/philosophy";
@@ -31,16 +32,20 @@ export default async function Home() {
   const show = (key: string) => isSectionVisible(portfolio, key);
   const featuredProjects = portfolio.projects.filter((item) => item.featured);
   const otherProjects = portfolio.projects.filter((item) => !item.featured);
-  const spotlightSocial =
-    socialByPlatform(portfolio, "facebook") ||
-    portfolio.socials.find((item) => item.href);
+  const fireNepal = portfolio.projects.find((item) =>
+    item.title.toLowerCase().includes("fire nepal"),
+  );
+  const nepseSocial =
+    socialByPlatform(portfolio, "facebookNepse") ||
+    portfolio.socials.find((item) => item.note.toLowerCase().includes("nepse"));
   const wordmark = brandWordmark(portfolio.settings);
-  const showProduct =
-    show("product") ||
-    (show("projects") &&
-      (portfolio.productCards.length > 0 ||
-        portfolio.productFeatures.length > 0 ||
-        Boolean(portfolio.productSettings.case_title)));
+  const showGenericProduct =
+    !fireNepal &&
+    (show("product") ||
+      (show("projects") &&
+        (portfolio.productCards.length > 0 ||
+          portfolio.productFeatures.length > 0 ||
+          Boolean(portfolio.productSettings.case_title))));
 
   return (
     <>
@@ -56,7 +61,7 @@ export default async function Home() {
         {show("market") ? (
           <Market
             settings={portfolio.settings}
-            facebookUrl={spotlightSocial?.href || portfolio.settings.market_facebook_url}
+            facebookUrl={nepseSocial?.href || portfolio.settings.market_facebook_url}
           />
         ) : null}
         {show("projects") ? (
@@ -64,7 +69,15 @@ export default async function Home() {
             items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)}
           />
         ) : null}
-        {showProduct ? (
+        {show("projects") && fireNepal ? (
+          <FireNepalCase
+            liveUrl={fireNepal.live_url}
+            sectionTitle={portfolio.productSettings.section_title}
+            productCards={portfolio.productCards}
+            productFeatures={portfolio.productFeatures}
+          />
+        ) : null}
+        {showGenericProduct ? (
           <FeaturedProductCase
             settings={portfolio.productSettings}
             productCards={portfolio.productCards}
@@ -72,13 +85,15 @@ export default async function Home() {
           />
         ) : null}
         {show("projects") ? (
-          <OtherProjects items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)} />
+          <OtherProjects
+            items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)}
+          />
         ) : null}
         {show("skills") ? <Skills groups={groupedSkills(portfolio.skills)} /> : null}
         {show("content") ? (
           <ContentCreation settings={portfolio.settings} socials={portfolio.socials} />
         ) : null}
-        {show("experience") ? <CareerTimeline /> : null}
+        <CareerTimeline />
         {show("philosophy") ? <Philosophy text={portfolio.settings.philosophy} /> : null}
         {show("gallery") ? <GalleryCta /> : null}
         {show("contact") ? <Contact contact={portfolio.contact} socials={portfolio.socials} /> : null}
