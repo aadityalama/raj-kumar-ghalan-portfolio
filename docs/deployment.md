@@ -35,13 +35,38 @@ After changing `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` or other env vars, use Hosti
 
 Then hard-refresh `/admin/login` so the browser is not posting a stale Server Action ID.
 
+## Setup Wizard Name step (branding columns)
+
+If Admin → Setup wizard fails with:
+
+`Could not find the 'brand_name' column of 'portfolio_settings' in the schema cache`
+
+the production database is missing branding columns. Apply:
+
+`supabase/migrations/008_portfolio_settings_branding.sql`
+
+Then reload the API schema:
+
+```sql
+NOTIFY pgrst, 'reload schema';
+```
+
+Verify (from a machine with Hostinger env vars):
+
+```bash
+npx tsx scripts/verify-settings-schema.ts
+```
+
+This migration is additive and does not wipe personal production CMS content.
+
 ## Supabase production checklist
 
-1. Migrations applied (`001`–`007`)
+1. Migrations applied (`001`–`008`)
 2. Admin Auth user created
 3. Admin grant SQL applied for that email
 4. Public sign-up disabled
 5. Storage bucket `portfolio-media` present (created by migrations)
+6. Branding columns verified (`npx tsx scripts/verify-settings-schema.ts`)
 
 ## Existing personal site
 

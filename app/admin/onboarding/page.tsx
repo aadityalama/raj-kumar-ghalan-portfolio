@@ -19,6 +19,19 @@ const STEPS = [
 
 type Step = (typeof STEPS)[number];
 
+/** Demo/template placeholders — never treat personal production names as wizard defaults. */
+const NEUTRAL_NAME_VALUES = new Set([
+  "",
+  "your name",
+  "portfolio",
+  "my portfolio",
+  "creative professional",
+]);
+
+function isNeutralSetupValue(value: string | null | undefined) {
+  return NEUTRAL_NAME_VALUES.has(String(value || "").trim().toLowerCase());
+}
+
 function nextStep(step: Step) {
   const index = STEPS.indexOf(step);
   return STEPS[Math.min(index + 1, STEPS.length - 1)];
@@ -78,7 +91,10 @@ export default async function AdminOnboardingPage({
               <input
                 className="admin-input"
                 name="brand_name"
-                defaultValue={settings.brand_name || settings.hero_title}
+                defaultValue={
+                  isNeutralSetupValue(settings.brand_name) ? "" : settings.brand_name || ""
+                }
+                placeholder="Your Name"
                 required
               />
             </label>
@@ -87,9 +103,16 @@ export default async function AdminOnboardingPage({
               <input
                 className="admin-input"
                 name="website_name"
-                defaultValue={settings.website_name || settings.hero_title}
+                defaultValue={
+                  isNeutralSetupValue(settings.website_name) ? "" : settings.website_name || ""
+                }
+                placeholder="My Portfolio"
               />
             </label>
+            <p className="mt-3 text-xs text-subtle">
+              These fields save to your CMS branding settings. Existing production content is not
+              replaced unless you submit new values here.
+            </p>
           </ActionForm>
         ) : null}
 

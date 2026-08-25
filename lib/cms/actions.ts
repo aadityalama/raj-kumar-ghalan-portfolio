@@ -5,6 +5,13 @@ import { redirect } from "next/navigation";
 import { requireSiteEditor } from "@/lib/cms/admin-auth";
 import { sanitizeAccentColor } from "@/lib/cms/branding";
 import { MEDIA_BUCKET, profileStoragePathFromUrl, storageObjectPath, validateImageFile } from "@/lib/cms/media";
+import {
+  assertBrandColumns,
+  getPortfolioSettingsColumns,
+  isMissingColumnError,
+  migrationHintForMissingColumn,
+  pickSettingsPayload,
+} from "@/lib/cms/settings-schema";
 import { adminEmail, hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -104,19 +111,46 @@ const BRAND_FIELDS = [
   "site_url",
 ] as const;
 
-export async function saveSettingsAction(formData: FormData) {
-  const { supabase, siteId } = await adminClient();
-  const currentQuery = siteId
+async function readSettingsRow(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  siteId: string | null,
+) {
+  const query = siteId
     ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
     : supabase.from("portfolio_settings").select("*").eq("id", 1);
-  const { data: current } = await currentQuery.maybeSingle();
-  const payload: Record<string, string | number | boolean> = withSite(
-    { id: current?.id || 1, ...(current || {}) },
-    siteId,
-  );
+  return query.maybeSingle();
+}
+
+async function upsertSettingsRow(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  siteId: string | null,
+  payload: Record<string, unknown>,
+) {
+  const columns = await getPortfolioSettingsColumns();
+  const filtered = pickSettingsPayload(withSite({ ...payload }, siteId), columns);
+
+  // Always keep id for singleton upserts on legacy schemas.
+  if (filtered.id == null) filtered.id = 1;
+
+  const { error } = await supabase.from("portfolio_settings").upsert(filtered);
+  if (!error) return { ok: true as const };
+
+  if (isMissingColumnError(error.message)) {
+    return { error: migrationHintForMissingColumn() };
+  }
+  return { error: error.message };
+}
+
+export async function saveSettingsAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const { data: current } = await readSettingsRow(supabase, siteId);
+  const payload: Record<string, string | number | boolean> = {
+    id: current?.id || 1,
+  };
 
   for (const key of SETTINGS_FIELDS) {
     if (formData.has(key)) payload[key] = String(formData.get(key) || "");
+    else if (current && current[key] != null) payload[key] = current[key] as string;
   }
 
   const heroFile = formData.get("hero_image");
@@ -133,33 +167,46 @@ export async function saveSettingsAction(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from("portfolio_settings").upsert(payload);
-  if (error) return { error: error.message };
+  const result = await upsertSettingsRow(supabase, siteId, payload);
+  if (result.error) return { error: result.error };
   refreshPublic();
   return { ok: true };
 }
 
 export async function saveBrandSettingsAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
-  const currentQuery = siteId
-    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
-    : supabase.from("portfolio_settings").select("*").eq("id", 1);
-  const { data: current } = await currentQuery.maybeSingle();
-  const payload: Record<string, string | number | boolean> = withSite(
-    { id: current?.id || 1, ...(current || {}) },
-    siteId,
-  );
+  const columns = await getPortfolioSettingsColumns();
+  const missing = assertBrandColumns(columns);
+  if (missing) return { error: missing };
+
+  const { data: current } = await readSettingsRow(supabase, siteId);
+  const payload: Record<string, string | number | boolean> = {
+    id: current?.id || 1,
+  };
+
+  for (const key of SETTINGS_FIELDS) {
+    if (current && current[key] != null) payload[key] = current[key] as string;
+  }
 
   for (const key of BRAND_FIELDS) {
     if (formData.has(key)) payload[key] = String(formData.get(key) || "");
+    else if (current && current[key] != null) payload[key] = current[key] as string;
   }
 
   if (formData.has("accent_color")) {
     payload.accent_color = sanitizeAccentColor(String(formData.get("accent_color") || ""));
+  } else if (current?.accent_color) {
+    payload.accent_color = String(current.accent_color);
   }
 
-  const theme = String(formData.get("theme_preference") || "dark");
+  const theme = String(formData.get("theme_preference") || current?.theme_preference || "dark");
   payload.theme_preference = ["dark", "light", "system"].includes(theme) ? theme : "dark";
+
+  // Keep public hero title aligned with the person/brand name customers edit here.
+  if (formData.has("brand_name")) {
+    const brandName = String(formData.get("brand_name") || "").trim();
+    if (brandName) payload.hero_title = brandName;
+  }
 
   const logoFile = formData.get("logo_file");
   if (logoFile instanceof File && logoFile.size > 0) {
@@ -181,33 +228,48 @@ export async function saveBrandSettingsAction(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from("portfolio_settings").upsert(payload);
-  if (error) return { error: error.message };
+  const result = await upsertSettingsRow(supabase, siteId, payload);
+  if (result.error) return { error: result.error };
   refreshPublic();
   return { ok: true };
 }
 
 export async function saveOnboardingAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
+  const columns = await getPortfolioSettingsColumns();
   const step = String(formData.get("step") || "");
-  const currentQuery = siteId
-    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
-    : supabase.from("portfolio_settings").select("*").eq("id", 1);
-  const { data: current } = await currentQuery.maybeSingle();
-  const payload: Record<string, string | number | boolean> = withSite(
-    { id: current?.id || 1, ...(current || {}) },
-    siteId,
-  );
+  const { data: current } = await readSettingsRow(supabase, siteId);
 
-  if (formData.has("brand_name") || formData.has("hero_title")) {
+  const payload: Record<string, string | number | boolean> = {
+    id: current?.id || 1,
+  };
+
+  // Preserve existing core fields so partial onboarding steps do not wipe content.
+  for (const key of SETTINGS_FIELDS) {
+    if (current && current[key] != null) payload[key] = current[key] as string;
+  }
+  for (const key of BRAND_FIELDS) {
+    if (columns.has(key) && current && current[key] != null) {
+      payload[key] = current[key] as string;
+    }
+  }
+
+  if (formData.has("brand_name") || formData.has("hero_title") || formData.has("website_name")) {
+    const brandMissing = assertBrandColumns(columns, ["brand_name", "website_name"]);
+    if (brandMissing) return { error: brandMissing };
+
     const name = String(formData.get("brand_name") || formData.get("hero_title") || "").trim();
+    const websiteName = String(formData.get("website_name") || name).trim();
     if (name) {
       payload.brand_name = name;
       payload.hero_title = name;
-      payload.website_name = String(formData.get("website_name") || name);
       payload.wordmark = String(formData.get("wordmark") || name.toUpperCase());
     }
+    if (websiteName) {
+      payload.website_name = websiteName;
+    }
   }
+
   if (formData.has("hero_positioning")) {
     payload.hero_positioning = String(formData.get("hero_positioning") || "");
   }
@@ -218,9 +280,15 @@ export async function saveOnboardingAction(formData: FormData) {
     payload.about_body = String(formData.get("about_body") || "");
   }
   if (formData.has("accent_color")) {
+    if (!columns.has("accent_color")) {
+      return { error: migrationHintForMissingColumn("accent_color") };
+    }
     payload.accent_color = sanitizeAccentColor(String(formData.get("accent_color") || ""));
   }
   if (formData.has("theme_preference")) {
+    if (!columns.has("theme_preference")) {
+      return { error: migrationHintForMissingColumn("theme_preference") };
+    }
     const theme = String(formData.get("theme_preference") || "dark");
     payload.theme_preference = ["dark", "light", "system"].includes(theme) ? theme : "dark";
   }
@@ -236,17 +304,22 @@ export async function saveOnboardingAction(formData: FormData) {
   }
 
   if (step === "publish") {
-    payload.onboarding_completed = true;
+    if (columns.has("onboarding_completed")) {
+      payload.onboarding_completed = true;
+    }
     if (siteId) {
       await supabase
         .from("portfolio_sites")
-        .update({ onboarding_completed: true, name: String(payload.brand_name || payload.website_name || "Portfolio") })
+        .update({
+          onboarding_completed: true,
+          name: String(payload.brand_name || payload.website_name || payload.hero_title || "Portfolio"),
+        })
         .eq("id", siteId);
     }
   }
 
-  const { error } = await supabase.from("portfolio_settings").upsert(payload);
-  if (error) return { error: error.message };
+  const result = await upsertSettingsRow(supabase, siteId, payload);
+  if (result.error) return { error: result.error };
 
   // Optional first project during onboarding
   const projectTitle = String(formData.get("project_title") || "").trim();

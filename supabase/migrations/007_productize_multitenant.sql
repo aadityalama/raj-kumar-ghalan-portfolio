@@ -194,16 +194,46 @@ create unique index if not exists portfolio_sections_site_key_uidx on public.por
 -- ---------------------------------------------------------------------------
 
 alter table public.portfolio_settings
-  add column if not exists website_name text not null default 'Portfolio',
-  add column if not exists brand_name text not null default 'Your Name',
-  add column if not exists wordmark text not null default 'YOUR NAME',
-  add column if not exists logo_url text not null default '',
-  add column if not exists favicon_url text not null default '',
-  add column if not exists accent_color text not null default '#3DDC97',
-  add column if not exists theme_preference text not null default 'dark'
-    check (theme_preference in ('dark', 'light', 'system')),
-  add column if not exists copyright_text text not null default '',
-  add column if not exists site_url text not null default '',
+  add column if not exists website_name text not null default 'Portfolio';
+
+alter table public.portfolio_settings
+  add column if not exists brand_name text not null default 'Your Name';
+
+alter table public.portfolio_settings
+  add column if not exists wordmark text not null default 'YOUR NAME';
+
+alter table public.portfolio_settings
+  add column if not exists logo_url text not null default '';
+
+alter table public.portfolio_settings
+  add column if not exists favicon_url text not null default '';
+
+alter table public.portfolio_settings
+  add column if not exists accent_color text not null default '#3DDC97';
+
+alter table public.portfolio_settings
+  add column if not exists theme_preference text not null default 'dark';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'portfolio_settings_theme_preference_check'
+  ) then
+    alter table public.portfolio_settings
+      add constraint portfolio_settings_theme_preference_check
+      check (theme_preference in ('dark', 'light', 'system'));
+  end if;
+exception
+  when duplicate_object then null;
+end $$;
+
+alter table public.portfolio_settings
+  add column if not exists copyright_text text not null default '';
+
+alter table public.portfolio_settings
+  add column if not exists site_url text not null default '';
+
+alter table public.portfolio_settings
   add column if not exists onboarding_completed boolean not null default false;
 
 -- Backfill brand fields from existing hero title when still default placeholders

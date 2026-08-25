@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:settings-schema": "npx tsx scripts/verify-settings-schema.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
