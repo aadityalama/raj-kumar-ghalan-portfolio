@@ -496,7 +496,26 @@ export async function deleteSocialAction(formData: FormData) {
   return { ok: true };
 }
 
-async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "profile" | "social" | "brand", file: File) {
+function normalizeOptionalHttpUrl(value: string, label: string): { url: string } | { error: string } {
+  const trimmed = value.trim();
+  if (!trimmed) return { url: "" };
+  if (trimmed.length > 2048) return { error: `${label} is too long.` };
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return { error: `${label} must be a valid http(s) URL.` };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { error: `${label} must use http or https.` };
+  }
+  return { url: trimmed };
+}
+
+async function uploadPublicImage(
+  kind: "gallery" | "projects" | "product" | "profile" | "social" | "brand" | "experience",
+  file: File,
+) {
   const invalid = validateImageFile(file);
   if (invalid) throw new Error(invalid);
   const supabase = await createSupabaseServerClient();
@@ -652,8 +671,28 @@ export async function deleteProjectAction(formData: FormData) {
 export async function saveExperienceAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
+
+  let companyLogoUrl = "";
+  const logoFile = formData.get("company_logo_file");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("experience", logoFile);
+      companyLogoUrl = uploaded.url;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Logo upload failed." };
+    }
+  } else {
+    const normalized = normalizeOptionalHttpUrl(
+      String(formData.get("company_logo_url") || ""),
+      "Company logo URL",
+    );
+    if ("error" in normalized) return { error: normalized.error };
+    companyLogoUrl = normalized.url;
+  }
+
   const payload = {
     company: String(formData.get("company") || ""),
+    company_logo_url: companyLogoUrl,
     position: String(formData.get("position") || ""),
     start_year: String(formData.get("start_year") || ""),
     end_year: String(formData.get("end_year") || ""),

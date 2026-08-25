@@ -2,8 +2,34 @@ import Image from "next/image";
 import { experience } from "@/config/site";
 import { Section } from "@/components/ui/section";
 import { Reveal, Stagger, StaggerItem } from "@/components/ui/reveal";
+import { CompanyLogo } from "@/components/ui/company-logo";
 import { ExperiencePhotos } from "@/components/sections/experience-photos";
 import type { ExperienceRow, SettingsRow } from "@/lib/cms/types";
+
+function CompanyHeading({
+  company,
+  logoUrl,
+  size = "sm",
+}: {
+  company: string;
+  logoUrl?: string | null;
+  size?: "sm" | "md";
+}) {
+  return (
+    <div className="mt-3 flex min-w-0 items-center gap-3">
+      <CompanyLogo src={logoUrl} company={company} size={size} />
+      <h3
+        className={
+          size === "md"
+            ? "min-w-0 text-3xl tracking-[-0.04em] sm:text-4xl"
+            : "min-w-0 text-2xl tracking-[-0.03em]"
+        }
+      >
+        {company}
+      </h3>
+    </div>
+  );
+}
 
 export function Experience({
   settings,
@@ -38,11 +64,11 @@ export function Experience({
             ) : (
               <div className="mb-6 hidden lg:block" />
             )}
-            <div>
+            <div className="min-w-0">
               <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">
                 {[featured.start_year, featured.end_year].filter(Boolean).join(" – ") || experience.tenure}
               </p>
-              <h3 className="mt-3 text-3xl tracking-[-0.04em] sm:text-4xl">{featured.company}</h3>
+              <CompanyHeading company={featured.company} logoUrl={featured.company_logo_url} size="md" />
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
                 {featured.position}
               </p>
@@ -70,7 +96,7 @@ export function Experience({
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">
               {[item.start_year, item.end_year].filter(Boolean).join(" – ")}
             </p>
-            <h3 className="mt-3 text-2xl tracking-[-0.03em]">{item.company}</h3>
+            <CompanyHeading company={item.company} logoUrl={item.company_logo_url} />
             <p className="mt-2 text-sm text-muted">{item.position}</p>
             <p className="mt-4 max-w-2xl text-pretty text-muted">{item.description}</p>
           </article>

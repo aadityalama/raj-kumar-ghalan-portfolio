@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { brandDisplayName } from "@/lib/cms/branding";
 import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
+import { normalizeExperienceRows } from "@/lib/cms/experience";
 import { getCurrentSite, isLegacySiteId } from "@/lib/cms/site";
 import type {
   ContactRow,
@@ -158,7 +159,7 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       ),
       gallery: [],
       projects: (projectsRes.data as ProjectRow[]) || fallback.projects,
-      experience: (experienceRes.data as ExperienceRow[]) || fallback.experience,
+      experience: normalizeExperienceRows(experienceRes.data as ExperienceRow[] | null, fallback.experience),
       skills: (skillsRes.data as SkillRow[]) || fallback.skills,
       socials: ((socialsRes.data as SocialRow[]) || fallback.socials).filter((item) => item.href),
       contact: (contactRes.data as ContactRow) || fallback.contact,
