@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { fallbackPortfolio } from "@/lib/cms/defaults";
+import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
 import type {
   ContactRow,
   ExperienceRow,
@@ -15,16 +15,39 @@ import type {
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
+  if (!hasSupabaseEnv()) return defaultGallery();
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("portfolio_gallery")
+      .select("*")
+      .eq("visible", true)
+      .order("sort_order");
+
+    if (data && data.length > 0) return data as GalleryRow[];
+    return defaultGallery();
+  } catch {
+    return defaultGallery();
+  }
+});
+
 export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
   const fallback = fallbackPortfolio();
-  if (!hasSupabaseEnv()) return fallback;
+  if (!hasSupabaseEnv()) {
+    return {
+      ...fallback,
+      // Homepage consumers should not pull the full gallery payload.
+      gallery: [],
+    };
+  }
 
   try {
     const supabase = await createSupabaseServerClient();
     const [
       settingsRes,
       sectionsRes,
-      galleryRes,
       projectsRes,
       experienceRes,
       skillsRes,
@@ -34,7 +57,6 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
     ] = await Promise.all([
       supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle(),
       supabase.from("portfolio_sections").select("*").eq("visible", true).order("sort_order"),
-      supabase.from("portfolio_gallery").select("*").eq("visible", true).order("sort_order"),
       supabase.from("portfolio_projects").select("*").eq("published", true).order("sort_order"),
       supabase.from("portfolio_experience").select("*").order("sort_order"),
       supabase.from("portfolio_skills").select("*").eq("visible", true).order("sort_order"),
@@ -45,15 +67,19 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
 
     const hasCms =
       settingsRes.data ||
-      (sectionsRes.data && sectionsRes.data.length > 0) ||
-      (galleryRes.data && galleryRes.data.length > 0);
+      (sectionsRes.data && sectionsRes.data.length > 0);
 
-    if (!hasCms) return fallback;
+    if (!hasCms) {
+      return {
+        ...fallback,
+        gallery: [],
+      };
+    }
 
     return {
       settings: (settingsRes.data as SettingsRow) || fallback.settings,
       sections: ((sectionsRes.data as SectionRow[]) || fallback.sections).filter((item) => item.visible),
-      gallery: (galleryRes.data as GalleryRow[]) || fallback.gallery,
+      gallery: [],
       projects: (projectsRes.data as ProjectRow[]) || fallback.projects,
       experience: (experienceRes.data as ExperienceRow[]) || fallback.experience,
       skills: (skillsRes.data as SkillRow[]) || fallback.skills,
@@ -63,7 +89,10 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       source: "cms",
     };
   } catch {
-    return fallback;
+    return {
+      ...fallback,
+      gallery: [],
+    };
   }
 });
 
@@ -76,15 +105,37 @@ export function sectionLabel(portfolio: PublicPortfolio, key: string, fallback: 
   return portfolio.sections.find((item) => item.section_key === key)?.label || fallback;
 }
 
+function navHref(item: SectionRow) {
+  if (item.section_key === "gallery") return "/gallery";
+  if (item.href.startsWith("#") || item.href.startsWith("/")) return item.href;
+  return `#${item.section_key}`;
+}
+
+function navLabel(item: SectionRow) {
+  if (item.section_key === "gallery" && (item.label === "Gallery" || !item.label)) {
+    return "Photo Gallery";
+  }
+  return item.label;
+}
+
 export function navItems(portfolio: PublicPortfolio) {
-  const preferred = ["about", "experience", "projects", "skills", "content", "contact"];
+  const preferred = [
+    "about",
+    "experience",
+    "projects",
+    "skills",
+    "content",
+    "gallery",
+    "contact",
+  ];
   const visible = portfolio.sections.filter((item) => item.visible);
   const fromPreferred = preferred
     .map((key) => visible.find((item) => item.section_key === key))
     .filter((item): item is SectionRow => Boolean(item));
-  return (fromPreferred.length ? fromPreferred : visible.slice(0, 6)).map((item) => ({
-    label: item.label,
-    href: item.href.startsWith("#") ? item.href : `#${item.section_key}`,
+
+  return (fromPreferred.length ? fromPreferred : visible.slice(0, 7)).map((item) => ({
+    label: navLabel(item),
+    href: navHref(item),
   }));
 }
 
@@ -95,10 +146,10 @@ export function featuredPortrait(portfolio: PublicPortfolio) {
       alt: "Portrait of Raj Kumar Ghalan",
     };
   }
-  const featured = portfolio.gallery.find((item) => item.featured && item.image_url);
+
   return {
-    src: featured?.image_url || "/photos/portrait-hero.jpg",
-    alt: featured?.description || featured?.title || "Portrait of Raj Kumar Ghalan",
+    src: "/photos/portrait-hero.jpg",
+    alt: "Portrait of Raj Kumar Ghalan",
   };
 }
 

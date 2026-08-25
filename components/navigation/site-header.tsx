@@ -1,17 +1,40 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { navigation, site } from "@/config/site";
 import { ThemeToggle } from "@/components/navigation/theme-toggle";
 import { cn } from "@/lib/utils";
+
+function resolveNavHref(href: string, isHome: boolean) {
+  if (href.startsWith("#")) return isHome ? href : `/${href}`;
+  return href;
+}
+
+function isNavItemActive(
+  href: string,
+  pathname: string,
+  activeSection: string,
+) {
+  if (href.startsWith("/")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (!href.startsWith("#")) return false;
+  return pathname === "/" && activeSection === href.slice(1);
+}
 
 export function SiteHeader({
   items = navigation,
 }: {
   items?: readonly { label: string; href: string }[];
 }) {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const sectionIds = useMemo(
-    () => items.map((item) => item.href.replace("#", "")),
+    () =>
+      items
+        .filter((item) => item.href.startsWith("#"))
+        .map((item) => item.href.slice(1)),
     [items],
   );
   const [scrolled, setScrolled] = useState(false);
@@ -27,9 +50,13 @@ export function SiteHeader({
   }, []);
 
   useEffect(() => {
+    if (!isHome) return;
+
     const nodes = sectionIds
       .map((id) => document.getElementById(id))
       .filter((node): node is HTMLElement => Boolean(node));
+
+    if (!nodes.length) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -43,7 +70,7 @@ export function SiteHeader({
 
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [sectionIds]);
+  }, [sectionIds, isHome]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +106,10 @@ export function SiteHeader({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   return (
     <>
       <header
@@ -93,7 +124,7 @@ export function SiteHeader({
       >
         <div className="mx-auto flex h-[var(--nav-height)] max-w-[1180px] items-center justify-between px-5 sm:px-6 lg:px-8">
           <a
-            href="#top"
+            href={isHome ? "#top" : "/"}
             className="font-mono text-[11px] tracking-[0.22em] text-text"
           >
             {site.wordmark}
@@ -101,12 +132,12 @@ export function SiteHeader({
 
           <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
             {items.map((item) => {
-              const id = item.href.replace("#", "");
-              const isActive = active === id;
+              const href = resolveNavHref(item.href, isHome);
+              const isActive = isNavItemActive(item.href, pathname, active);
               return (
                 <a
                   key={item.href}
-                  href={item.href}
+                  href={href}
                   className={cn(
                     "relative py-1 text-[13px] text-muted transition-colors hover:text-text",
                     isActive && "text-text",
@@ -128,7 +159,7 @@ export function SiteHeader({
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <a
-              href="#contact"
+              href={resolveNavHref("#contact", isHome)}
               className="hidden min-h-11 items-center rounded-full border border-border px-4 text-[13px] text-text transition-colors hover:border-accent/40 lg:inline-flex"
             >
               Let’s Talk
@@ -178,7 +209,7 @@ export function SiteHeader({
             {items.map((item) => (
               <a
                 key={item.href}
-                href={item.href}
+                href={resolveNavHref(item.href, isHome)}
                 onClick={() => setOpen(false)}
                 className="mobile-nav-link shrink-0 border-b border-border py-5 text-3xl tracking-[-0.04em] text-text transition-colors hover:text-accent"
               >
@@ -186,7 +217,7 @@ export function SiteHeader({
               </a>
             ))}
             <a
-              href="#contact"
+              href={resolveNavHref("#contact", isHome)}
               onClick={() => setOpen(false)}
               className="mobile-nav-link mt-6 inline-flex min-h-12 shrink-0 items-center text-lg text-accent transition-opacity hover:opacity-80"
             >

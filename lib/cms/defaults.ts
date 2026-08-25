@@ -58,12 +58,12 @@ export function defaultSettings(): SettingsRow {
 export function defaultSections(): SectionRow[] {
   return [
     { id: "about", section_key: "about", label: "About", href: "#about", visible: true, sort_order: 10 },
-    { id: "gallery", section_key: "gallery", label: "Gallery", href: "#gallery", visible: true, sort_order: 20 },
     { id: "experience", section_key: "experience", label: "Experience", href: "#experience", visible: true, sort_order: 30 },
     { id: "market", section_key: "market", label: "Market", href: "#market", visible: true, sort_order: 40 },
     { id: "projects", section_key: "projects", label: "Projects", href: "#projects", visible: true, sort_order: 50 },
     { id: "skills", section_key: "skills", label: "Skills", href: "#skills", visible: true, sort_order: 60 },
     { id: "content", section_key: "content", label: "Content", href: "#content", visible: true, sort_order: 70 },
+    { id: "gallery", section_key: "gallery", label: "Photo Gallery", href: "/gallery", visible: true, sort_order: 72 },
     { id: "philosophy", section_key: "philosophy", label: "Philosophy", href: "#philosophy", visible: true, sort_order: 75 },
     { id: "contact", section_key: "contact", label: "Contact", href: "#contact", visible: true, sort_order: 80 },
   ];
