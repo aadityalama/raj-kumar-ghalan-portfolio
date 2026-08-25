@@ -12,7 +12,6 @@ export function CaseVisuals({ cards }: { cards: ProductCardRow[] }) {
       src: card.image_url,
       alt: card.description || card.title,
       caption: card.title,
-      href: card.link_url || undefined,
     }));
   const [open, setOpen] = useState<number | null>(null);
 
