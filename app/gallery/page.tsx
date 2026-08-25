@@ -17,7 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const portfolio = await getPublicPortfolio();
   const name = brandDisplayName(portfolio.settings);
   const galleryTitle = `Photo Gallery | ${name}`;
-  const galleryDescription = `Explore photos from ${name}'s work, projects, and experiences.`;
+  const galleryDescription =
+    name === site.name
+      ? "Explore photos from Raj Kumar Ghalan's professional journey, projects, work, and experiences."
+      : `Explore photos from ${name}'s work, projects, and experiences.`;
 
   return {
     title: {

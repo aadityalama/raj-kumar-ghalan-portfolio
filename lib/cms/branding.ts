@@ -2,6 +2,8 @@
  * Controlled branding helpers — hex accent only, no arbitrary CSS injection.
  */
 
+import { site } from "@/config/site";
+
 const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export function sanitizeAccentColor(value: string | null | undefined, fallback = "#3DDC97") {
@@ -23,7 +25,7 @@ export function brandDisplayName(settings: {
     settings.brand_name?.trim() ||
     settings.website_name?.trim() ||
     settings.hero_title?.trim() ||
-    "Your Name"
+    site.name
   );
 }
 

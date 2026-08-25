@@ -213,7 +213,7 @@ export function featuredPortrait(portfolio: PublicPortfolio) {
   }
 
   return {
-    src: "",
+    src: "/photos/portrait-hero.jpg",
     alt: `Portrait of ${name}`,
   };
 }

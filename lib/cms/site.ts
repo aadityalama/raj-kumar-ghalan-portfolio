@@ -155,6 +155,10 @@ function customerSlugForUser(userId: string) {
   return `customer-${userId.replace(/-/g, "").slice(0, 12)}`;
 }
 
+/**
+ * Seed empty scaffolding for a NEW customer site only.
+ * Never call this against the owner / default site — production owner CMS rows stay untouched.
+ */
 async function seedEmptySiteContent(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   siteId: string,

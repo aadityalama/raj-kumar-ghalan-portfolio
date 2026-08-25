@@ -2,23 +2,17 @@ import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 
-export function GalleryCta({
-  title = "Photo Gallery",
-  description = "A collection of moments from work, projects, and experiences.",
-}: {
-  title?: string;
-  description?: string;
-}) {
+export function GalleryCta() {
   return (
     <section id="photo-gallery" className="relative scroll-mt-24 py-20 sm:py-24 lg:py-32">
       <Container>
         <Reveal>
           <header className="max-w-3xl">
             <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.28em] text-accent">
-              {title}
+              Photo Gallery
             </p>
             <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted sm:text-lg">
-              {description}
+              A collection of moments from my work, projects, journey, and experiences.
             </p>
           </header>
           <div className="mt-8">
