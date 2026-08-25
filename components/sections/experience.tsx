@@ -25,7 +25,7 @@ export function Experience({
       {featured ? (
         <Reveal>
           <article className="overflow-hidden rounded-[1.4rem] border border-border bg-bg-card p-6 shadow-[var(--shadow)] sm:p-8 lg:grid lg:grid-cols-[140px_minmax(0,1fr)] lg:items-start lg:gap-8 lg:p-10">
-            {featured.company.toLowerCase().includes("kp electric") ? (
+            {experience.logo ? (
               <div className="mb-6 grid size-24 place-items-center rounded-2xl border border-border bg-white p-3 lg:mb-0 lg:size-[120px]">
                 <Image
                   src={experience.logo}

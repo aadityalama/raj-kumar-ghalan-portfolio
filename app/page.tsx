@@ -9,12 +9,13 @@ import { Experience } from "@/components/sections/experience";
 import { GalleryCta } from "@/components/sections/gallery-cta";
 import { Market } from "@/components/sections/market";
 import { FeaturedProjects } from "@/components/sections/featured-projects";
-import { FireNepalCase } from "@/components/sections/fire-nepal-case";
+import { FeaturedProductCase } from "@/components/sections/featured-product-case";
 import { Hero } from "@/components/sections/hero";
 import { OtherProjects } from "@/components/sections/other-projects";
 import { Philosophy } from "@/components/sections/philosophy";
 import { SiteFooter } from "@/components/sections/site-footer";
 import { Skills } from "@/components/sections/skills";
+import { brandWordmark } from "@/lib/cms/branding";
 import {
   featuredPortrait,
   getPublicPortfolio,
@@ -30,15 +31,21 @@ export default async function Home() {
   const show = (key: string) => isSectionVisible(portfolio, key);
   const featuredProjects = portfolio.projects.filter((item) => item.featured);
   const otherProjects = portfolio.projects.filter((item) => !item.featured);
-  const fireNepal = portfolio.projects.find((item) => item.title.toLowerCase().includes("fire nepal"));
-  const nepseSocial =
-    socialByPlatform(portfolio, "facebookNepse") ||
-    portfolio.socials.find((item) => item.note.toLowerCase().includes("nepse"));
+  const spotlightSocial =
+    socialByPlatform(portfolio, "facebook") ||
+    portfolio.socials.find((item) => item.href);
+  const wordmark = brandWordmark(portfolio.settings);
+  const showProduct =
+    show("product") ||
+    (show("projects") &&
+      (portfolio.productCards.length > 0 ||
+        portfolio.productFeatures.length > 0 ||
+        Boolean(portfolio.productSettings.case_title)));
 
   return (
     <>
       <ScrollProgress />
-      <SiteHeader items={items} />
+      <SiteHeader items={items} wordmark={wordmark} />
       <Cursor />
       <main id="main">
         <Hero settings={portfolio.settings} portrait={featuredPortrait(portfolio)} />
@@ -49,14 +56,17 @@ export default async function Home() {
         {show("market") ? (
           <Market
             settings={portfolio.settings}
-            facebookUrl={nepseSocial?.href || portfolio.settings.market_facebook_url}
+            facebookUrl={spotlightSocial?.href || portfolio.settings.market_facebook_url}
           />
         ) : null}
-        {show("projects") ? <FeaturedProjects items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)} /> : null}
-        {show("projects") && fireNepal ? (
-          <FireNepalCase
-            liveUrl={fireNepal.live_url}
-            sectionTitle={portfolio.productSettings.section_title}
+        {show("projects") ? (
+          <FeaturedProjects
+            items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)}
+          />
+        ) : null}
+        {showProduct ? (
+          <FeaturedProductCase
+            settings={portfolio.productSettings}
             productCards={portfolio.productCards}
             productFeatures={portfolio.productFeatures}
           />
@@ -68,7 +78,7 @@ export default async function Home() {
         {show("content") ? (
           <ContentCreation settings={portfolio.settings} socials={portfolio.socials} />
         ) : null}
-        <CareerTimeline />
+        {show("experience") ? <CareerTimeline /> : null}
         {show("philosophy") ? <Philosophy text={portfolio.settings.philosophy} /> : null}
         {show("gallery") ? <GalleryCta /> : null}
         {show("contact") ? <Contact contact={portfolio.contact} socials={portfolio.socials} /> : null}
@@ -77,6 +87,8 @@ export default async function Home() {
         positioning={portfolio.settings.hero_positioning}
         items={items}
         socials={portfolio.socials}
+        wordmark={wordmark}
+        copyrightText={portfolio.settings.copyright_text}
       />
     </>
   );

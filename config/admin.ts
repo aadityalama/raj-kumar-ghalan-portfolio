@@ -1,6 +1,9 @@
 /**
- * Designated Supabase Auth admin for this portfolio.
- * Matches config/site.ts `email` and supabase/migrations/002_grant_admin.sql.
- * This is an allowlist address, not a password or API secret.
+ * Admin allowlist fallback for single-site deployments.
+ * Prefer server-only ADMIN_EMAIL in production.
+ * Leave empty for commercial installs so ADMIN_EMAIL is required.
  */
-export const DESIGNATED_ADMIN_EMAIL = "aadityalama853@gmail.com" as const;
+export const DESIGNATED_ADMIN_EMAIL = "" as const;
+
+/** Internal product name shown in admin chrome (not on customer public sites). */
+export const ADMIN_PRODUCT_NAME = "Portfolio CMS" as const;

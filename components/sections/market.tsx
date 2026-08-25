@@ -13,8 +13,8 @@ export function Market({
 }) {
   const href = facebookUrl || settings.market_facebook_url || market.facebook.href;
   const stats = [
-    { value: settings.market_followers || "11K+", label: "Followers" },
-    { value: settings.market_posts || "231+", label: "Posts" },
+    { value: settings.market_followers || market.stats[0]?.value || "—", label: market.stats[0]?.label || "Metric" },
+    { value: settings.market_posts || market.stats[1]?.value || "—", label: market.stats[1]?.label || "Metric" },
   ];
 
   return (
@@ -28,7 +28,7 @@ export function Market({
         <article className="mb-10 rounded-[1.4rem] border border-border bg-bg-card p-6 sm:p-8 lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(220px,0.75fr)] lg:items-end lg:gap-10">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-accent">
-              NEPSE Market Analyst
+              {market.eyebrow}
             </p>
             <p className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted sm:text-base">
               {settings.market_profile || market.profile}

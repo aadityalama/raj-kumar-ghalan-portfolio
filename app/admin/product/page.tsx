@@ -17,23 +17,24 @@ export default async function AdminProductPage() {
 
   return (
     <div>
-      <h1 className="text-4xl tracking-[-0.04em]">Product</h1>
+      <h1 className="text-4xl tracking-[-0.04em]">Product / Featured Work</h1>
       <p className="mt-3 max-w-2xl text-sm text-muted">
-        Edit the FIRE Nepal “The Product” section on the homepage — section title, product image cards,
-        and numbered feature cards.
+        Configure the reusable featured product / case study section — title, story chapters, image
+        cards, feature list, technologies, and visibility. Works for any customer product.
       </p>
       {!configured ? (
         <p className="admin-notice mt-6 text-sm text-muted">
           Supabase is not configured. Showing fallback content. Apply migration{" "}
-          <code>006_product_section.sql</code> after env is set.
+          <code>006_product_section.sql</code> and <code>007_productize_multitenant.sql</code> after
+          env is set.
         </p>
       ) : null}
 
       <article className="admin-card mt-8 p-5">
-        <h2 className="text-lg">Section title</h2>
+        <h2 className="text-lg">Case study & product settings</h2>
         <ActionForm action={saveProductSettingsAction} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-2 text-sm sm:col-span-2">
-            Eyebrow / title
+            Product section title
             <input
               className="admin-input"
               name="section_title"
@@ -41,6 +42,125 @@ export default async function AdminProductPage() {
               placeholder="The Product"
               required
             />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Case study title
+            <input
+              className="admin-input"
+              name="case_title"
+              defaultValue={productSettings.case_title || ""}
+              placeholder="Featured project, in focus"
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Eyebrow
+            <input
+              className="admin-input"
+              name="case_eyebrow"
+              defaultValue={productSettings.case_eyebrow || "Featured work"}
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Category
+            <input
+              className="admin-input"
+              name="category"
+              defaultValue={productSettings.category || ""}
+              placeholder="FinTech · SaaS"
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Live URL
+            <input
+              className="admin-input"
+              name="live_url"
+              defaultValue={productSettings.live_url || ""}
+              placeholder="https://"
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Short description
+            <textarea
+              className="admin-input min-h-20"
+              name="short_description"
+              defaultValue={productSettings.short_description || ""}
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Problem title
+            <input
+              className="admin-input"
+              name="problem_title"
+              defaultValue={productSettings.problem_title || "The Problem"}
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Vision title
+            <input
+              className="admin-input"
+              name="vision_title"
+              defaultValue={productSettings.vision_title || "The Vision"}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Problem body
+            <textarea
+              className="admin-input min-h-20"
+              name="problem_body"
+              defaultValue={productSettings.problem_body || ""}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Vision body
+            <textarea
+              className="admin-input min-h-20"
+              name="vision_body"
+              defaultValue={productSettings.vision_body || ""}
+            />
+          </label>
+          <label className="grid gap-2 text-sm">
+            Built title
+            <input
+              className="admin-input"
+              name="built_title"
+              defaultValue={productSettings.built_title || "What I Built"}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Built body
+            <textarea
+              className="admin-input min-h-20"
+              name="built_body"
+              defaultValue={productSettings.built_body || ""}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Technologies (comma-separated)
+            <input
+              className="admin-input"
+              name="technologies"
+              defaultValue={(productSettings.technologies || []).join(", ")}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Tech body
+            <textarea
+              className="admin-input min-h-16"
+              name="tech_body"
+              defaultValue={productSettings.tech_body || ""}
+            />
+          </label>
+          <label className="grid gap-2 text-sm sm:col-span-2">
+            Philosophy body
+            <textarea
+              className="admin-input min-h-16"
+              name="philosophy_body"
+              defaultValue={productSettings.philosophy_body || ""}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="visible" defaultChecked={productSettings.visible !== false} />{" "}
+            Visible on homepage
           </label>
         </ActionForm>
       </article>
@@ -62,7 +182,11 @@ export default async function AdminProductPage() {
             Description
             <input className="admin-input" name="description" placeholder="Alt / description text" />
           </label>
-          <label className="grid gap-2 text-sm sm:col-span-2">
+          <label className="grid gap-2 text-sm">
+            Category
+            <input className="admin-input" name="category" placeholder="Product" />
+          </label>
+          <label className="grid gap-2 text-sm">
             Link / URL
             <input className="admin-input" name="link_url" placeholder="https://…" />
           </label>

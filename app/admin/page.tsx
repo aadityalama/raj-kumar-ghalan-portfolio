@@ -1,25 +1,41 @@
 import Link from "next/link";
 import { getAdminDashboard } from "@/lib/cms/admin-data";
 import { requireAdmin } from "@/lib/cms/admin-auth";
+import { getAdminCollections } from "@/lib/cms/admin-data";
 import { adminEmail } from "@/lib/supabase/env";
 
 const actions = [
   { href: "/admin/content", label: "Edit homepage & about" },
   { href: "/admin/gallery", label: "Upload photos" },
   { href: "/admin/projects", label: "Add a project" },
-  { href: "/admin/product", label: "Edit product section" },
-  { href: "/admin/market", label: "Update NEPSE profile" },
+  { href: "/admin/product", label: "Edit featured work" },
+  { href: "/admin/settings", label: "Brand settings" },
+  { href: "/admin/onboarding", label: "Run setup wizard" },
 ];
 
 export default async function AdminHomePage() {
   await requireAdmin();
   const stats = await getAdminDashboard();
+  const { settings } = await getAdminCollections();
   const email = adminEmail();
+  const needsOnboarding = settings.onboarding_completed === false;
 
   return (
     <div>
       <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">Overview</p>
       <h1 className="mt-3 text-4xl tracking-[-0.04em]">Dashboard</h1>
+
+      {needsOnboarding ? (
+        <article className="admin-notice mt-6 text-sm text-muted">
+          <p className="text-text">Finish first-time setup</p>
+          <p className="mt-2">
+            Complete the guided wizard to set your name, photo, title, and first project.
+          </p>
+          <Link href="/admin/onboarding" className="admin-link mt-4 inline-flex">
+            Open setup wizard →
+          </Link>
+        </article>
+      ) : null}
 
       {!stats.configured || !stats.cmsReady || !stats.adminGranted ? (
         <article className="admin-notice mt-6 text-sm text-muted">
@@ -30,17 +46,15 @@ export default async function AdminHomePage() {
                 ? "Supabase env is set."
                 : "Add NEXT_PUBLIC_SUPABASE_URL and the public anon or publishable key."}
             </li>
-            <li>{stats.cmsReady ? "CMS tables are reachable." : "Run supabase/migrations/001_portfolio_cms.sql in this portfolio’s Supabase project."}</li>
+            <li>
+              {stats.cmsReady
+                ? "CMS tables are reachable."
+                : "Run supabase/migrations in order (001 through 007) in this portfolio’s Supabase project."}
+            </li>
             <li>
               {stats.adminGranted
                 ? `Write access is granted for ${email || "the configured admin"}.`
-                : "Run supabase/migrations/002_grant_admin.sql after creating the Auth user that matches server-only ADMIN_EMAIL. Writes stay blocked by RLS until then."}
-            </li>
-            <li>
-              Then run supabase/migrations/003_hero_image_and_storage_paths.sql,
-              supabase/migrations/004_admin_userid_only.sql,
-              supabase/migrations/005_table_privileges.sql, and
-              supabase/migrations/006_product_section.sql.
+                : "Grant admin access after creating the Auth user that matches server-only ADMIN_EMAIL. Writes stay blocked by RLS until then."}
             </li>
           </ul>
         </article>
@@ -51,7 +65,7 @@ export default async function AdminHomePage() {
           ["Total projects", stats.projects],
           ["Total gallery photos", stats.photos],
           ["Total skills", stats.skills],
-          ["Total content sections", stats.sections],
+          ["Product cards", stats.productCards],
         ].map(([label, value]) => (
           <article key={String(label)} className="admin-card p-5">
             <p className="text-xs text-subtle">{label}</p>
@@ -81,7 +95,9 @@ export default async function AdminHomePage() {
                 </li>
               ))
             ) : (
-              <li className="text-sm text-muted">No CMS updates yet. Apply the SQL migrations, then edit content.</li>
+              <li className="text-sm text-muted">
+                No CMS updates yet. Apply the SQL migrations, then edit content.
+              </li>
             )}
           </ul>
         </article>

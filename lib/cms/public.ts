@@ -1,8 +1,11 @@
 import { cache } from "react";
+import { brandDisplayName } from "@/lib/cms/branding";
 import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
+import { getCurrentSite, isLegacySiteId } from "@/lib/cms/site";
 import type {
   ContactRow,
   ExperienceRow,
+  GalleryRow,
   ProductCardRow,
   ProductFeatureRow,
   ProductSettingsRow,
@@ -13,21 +16,29 @@ import type {
   SettingsRow,
   SkillRow,
   SocialRow,
-  GalleryRow,
 } from "@/lib/cms/types";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase builder generics blow the TS recursion limit
+function withSiteFilter(query: any, siteId: string | null) {
+  if (!siteId || isLegacySiteId(siteId)) return query;
+  return query.eq("site_id", siteId);
+}
 
 export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
   if (!hasSupabaseEnv()) return defaultGallery();
 
   try {
+    const site = await getCurrentSite();
     const supabase = await createSupabaseServerClient();
-    const { data } = await supabase
+    let query = supabase
       .from("portfolio_gallery")
       .select("*")
       .eq("visible", true)
       .order("sort_order");
+    query = withSiteFilter(query, site?.id || null);
+    const { data } = await query;
 
     if (data && data.length > 0) return data as GalleryRow[];
     return defaultGallery();
@@ -41,13 +52,29 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
   if (!hasSupabaseEnv()) {
     return {
       ...fallback,
-      // Homepage consumers should not pull the full gallery payload.
       gallery: [],
     };
   }
 
   try {
+    const site = await getCurrentSite();
+    const siteId = site?.id || null;
     const supabase = await createSupabaseServerClient();
+
+    const settingsQuery = withSiteFilter(
+      supabase.from("portfolio_settings").select("*"),
+      siteId,
+    );
+    const contactQuery = withSiteFilter(
+      supabase.from("portfolio_contact").select("*"),
+      siteId,
+    );
+    const seoQuery = withSiteFilter(supabase.from("portfolio_seo").select("*"), siteId);
+    const productSettingsQuery = withSiteFilter(
+      supabase.from("portfolio_product_settings").select("*"),
+      siteId,
+    );
+
     const [
       settingsRes,
       sectionsRes,
@@ -61,27 +88,63 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       productCardsRes,
       productFeaturesRes,
     ] = await Promise.all([
-      supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle(),
-      supabase.from("portfolio_sections").select("*").eq("visible", true).order("sort_order"),
-      supabase.from("portfolio_projects").select("*").eq("published", true).order("sort_order"),
-      supabase.from("portfolio_experience").select("*").order("sort_order"),
-      supabase.from("portfolio_skills").select("*").eq("visible", true).order("sort_order"),
-      supabase.from("portfolio_social_links").select("*").eq("visible", true).order("sort_order"),
-      supabase.from("portfolio_contact").select("*").eq("id", 1).maybeSingle(),
-      supabase.from("portfolio_seo").select("*").eq("id", 1).maybeSingle(),
-      supabase.from("portfolio_product_settings").select("*").eq("id", 1).maybeSingle(),
-      supabase.from("portfolio_product_cards").select("*").eq("visible", true).order("sort_order"),
-      supabase.from("portfolio_product_features").select("*").eq("visible", true).order("sort_order"),
+      isLegacySiteId(siteId)
+        ? supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle()
+        : settingsQuery.maybeSingle(),
+      withSiteFilter(
+        supabase.from("portfolio_sections").select("*").eq("visible", true).order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase.from("portfolio_projects").select("*").eq("published", true).order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase.from("portfolio_experience").select("*").order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase.from("portfolio_skills").select("*").eq("visible", true).order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase
+          .from("portfolio_social_links")
+          .select("*")
+          .eq("visible", true)
+          .order("sort_order"),
+        siteId,
+      ),
+      isLegacySiteId(siteId)
+        ? supabase.from("portfolio_contact").select("*").eq("id", 1).maybeSingle()
+        : contactQuery.maybeSingle(),
+      isLegacySiteId(siteId)
+        ? supabase.from("portfolio_seo").select("*").eq("id", 1).maybeSingle()
+        : seoQuery.maybeSingle(),
+      isLegacySiteId(siteId)
+        ? supabase.from("portfolio_product_settings").select("*").eq("id", 1).maybeSingle()
+        : productSettingsQuery.maybeSingle(),
+      withSiteFilter(
+        supabase.from("portfolio_product_cards").select("*").eq("visible", true).order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase
+          .from("portfolio_product_features")
+          .select("*")
+          .eq("visible", true)
+          .order("sort_order"),
+        siteId,
+      ),
     ]);
 
-    const hasCms =
-      settingsRes.data ||
-      (sectionsRes.data && sectionsRes.data.length > 0);
+    const hasCms = settingsRes.data || (sectionsRes.data && sectionsRes.data.length > 0);
 
     if (!hasCms) {
       return {
         ...fallback,
         gallery: [],
+        site,
       };
     }
 
@@ -90,7 +153,9 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
 
     return {
       settings: (settingsRes.data as SettingsRow) || fallback.settings,
-      sections: ((sectionsRes.data as SectionRow[]) || fallback.sections).filter((item) => item.visible),
+      sections: ((sectionsRes.data as SectionRow[]) || fallback.sections).filter(
+        (item) => item.visible,
+      ),
       gallery: [],
       projects: (projectsRes.data as ProjectRow[]) || fallback.projects,
       experience: (experienceRes.data as ExperienceRow[]) || fallback.experience,
@@ -107,6 +172,7 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
         ? fallback.productFeatures
         : ((productFeaturesRes.data as ProductFeatureRow[]) || fallback.productFeatures),
       source: "cms",
+      site,
     };
   } catch {
     return {
@@ -148,7 +214,9 @@ export function navItems(portfolio: PublicPortfolio) {
     "gallery",
     "contact",
   ];
-  const visible = portfolio.sections.filter((item) => item.visible);
+  const visible = portfolio.sections.filter(
+    (item) => item.visible && !["hero", "product", "philosophy", "market"].includes(item.section_key),
+  );
   const fromPreferred = preferred
     .map((key) => visible.find((item) => item.section_key === key))
     .filter((item): item is SectionRow => Boolean(item));
@@ -160,16 +228,17 @@ export function navItems(portfolio: PublicPortfolio) {
 }
 
 export function featuredPortrait(portfolio: PublicPortfolio) {
+  const name = brandDisplayName(portfolio.settings);
   if (portfolio.settings.hero_image_url) {
     return {
       src: portfolio.settings.hero_image_url,
-      alt: "Portrait of Raj Kumar Ghalan",
+      alt: `Portrait of ${name}`,
     };
   }
 
   return {
-    src: "/photos/portrait-hero.jpg",
-    alt: "Portrait of Raj Kumar Ghalan",
+    src: "",
+    alt: `Portrait of ${name}`,
   };
 }
 
@@ -182,4 +251,25 @@ export function groupedSkills(skills: SkillRow[]) {
     groups[skill.category] = [...(groups[skill.category] || []), skill.name];
     return groups;
   }, {});
+}
+
+/** Ordered homepage sections for the simple section manager / renderer. */
+export function orderedHomeSections(portfolio: PublicPortfolio) {
+  const keys = [
+    "about",
+    "experience",
+    "market",
+    "projects",
+    "product",
+    "skills",
+    "content",
+    "philosophy",
+    "gallery",
+    "contact",
+  ];
+  const byKey = new Map(portfolio.sections.map((item) => [item.section_key, item]));
+  return keys
+    .map((key) => byKey.get(key))
+    .filter((item): item is SectionRow => Boolean(item))
+    .sort((a, b) => a.sort_order - b.sort_order);
 }

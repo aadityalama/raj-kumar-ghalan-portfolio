@@ -1,32 +1,71 @@
-# Raj Kumar Ghalan
+# Portfolio CMS
 
-Personal website for Raj Kumar Ghalan — professional, digital builder, and creator.
+Premium Portfolio CMS — a reusable, white-label portfolio website + admin product for Hostinger Node.js deployments.
 
-## Stack
+Customers manage name, profile, projects, experience, skills, gallery, featured work, SEO, contact, and branding from `/admin` without editing code.
 
-- Next.js (App Router)
+## Features
+
+- Public premium dark portfolio (responsive, animated, green accent system)
+- Admin CMS for homepage, about, experience, projects, skills, gallery, product/featured work, social, SEO, contact, settings
+- Homepage section visibility + order manager
+- Dedicated `/gallery` page with homepage CTA
+- Reusable featured product / case study section
+- First-time onboarding wizard
+- Preview checklist
+- Multi-tenant-ready schema (`portfolio_sites` + `site_id` + membership RLS)
+- Hostinger-oriented deployment (not Vercel)
+
+## Tech stack
+
+- Next.js App Router
 - TypeScript
 - Tailwind CSS
 - Framer Motion
 - next-themes
-- Supabase (Auth + CMS)
+- Supabase (Auth + Postgres + Storage + RLS)
 
-## Content
-
-All personal facts, project links, social profiles, and SEO copy live in [`config/site.ts`](config/site.ts).
-
-Fields marked as placeholders are intentionally empty until a real value exists. Do not invent emails, URLs, dates, or metrics.
-
-## Develop
+## Quick start
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) and [http://localhost:3000/admin](http://localhost:3000/admin).
 
-Copy [`.env.example`](.env.example) to `.env.local` and fill in local values when working on the CMS.
+## Environment variables
+
+See [`.env.example`](.env.example) and [`docs/deployment.md`](docs/deployment.md).
+
+Never put secrets in `NEXT_PUBLIC_*` variables. Keep `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` and `ADMIN_EMAIL` server-side only.
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. Run migrations in order under `supabase/migrations/` (`001` … `007`).
+3. Create an Auth user for the admin email.
+4. Grant admin access (edit email in `002_grant_admin.sql` or use `supabase/seeds/grant_admin.example.sql`).
+5. Disable public sign-up in Supabase Auth.
+6. For a fresh commercial install, optionally load `supabase/seeds/demo_content.sql` **or** use the admin onboarding wizard.
+
+Existing personal production sites: apply `007_productize_multitenant.sql` only. Do **not** run demo seed on a live personal database — it is for new installs.
+
+## Admin setup
+
+1. Set `ADMIN_EMAIL` to the Auth user email.
+2. Visit `/admin/login`.
+3. Complete `/admin/onboarding` or edit content from the dashboard.
+4. Use **Preview checklist** before sharing the site.
+
+## Documentation
+
+- [`docs/installation.md`](docs/installation.md)
+- [`docs/customization.md`](docs/customization.md)
+- [`docs/deployment.md`](docs/deployment.md)
+- [`docs/admin-guide.md`](docs/admin-guide.md)
+- [`docs/licensing.md`](docs/licensing.md)
 
 ## Checks
 
@@ -36,32 +75,6 @@ npm run typecheck
 npm run build
 ```
 
-## Deploy (Hostinger)
+## License
 
-Set these in **Website → Environment variables** (not in the client bundle, except `NEXT_PUBLIC_*`):
-
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Canonical origin, e.g. `https://your-domain.com` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes (CMS/admin) | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Public anon key (`*` or use publishable key below) |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes* | Alternate to anon key on newer projects |
-| `ADMIN_EMAIL` | Recommended | Server-only allowlist; must match the Supabase Auth admin user and `002_grant_admin.sql`. If unset, the app falls back to `DESIGNATED_ADMIN_EMAIL` in `config/admin.ts`. |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | Yes (Hostinger) | Stable base64 AES key (`openssl rand -base64 32`). Must be present at **build** and runtime so Server Action IDs stay consistent across Redeploys. |
-
-Do **not** set `SUPABASE_SERVICE_ROLE_KEY`, passwords, or any admin secret as `NEXT_PUBLIC_*`.
-
-After creating the Auth user for the designated admin email, run the SQL migrations under `supabase/migrations/` (including `002_grant_admin.sql`) in that Supabase project. Disable public sign-up in Supabase Auth.
-
-### Hostinger Node.js settings
-
-| Field | Value |
-| --- | --- |
-| Application type | `next` |
-| Build script | `build` |
-| Output directory | `.next` |
-| Start command | leave Hostinger default for Next (do not point at a static `out/` folder) |
-
-Deploy from the Git branch that contains `app/admin/` (currently `cursor/personal-portfolio-site` or a PR merged into it).
-
-After adding or changing `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (or other env vars), use Hostinger **Redeploy** (full rebuild), not only **Restart**. A restart reuses the old build output and will not embed a new encryption key. After Redeploy completes, hard-refresh `/admin/login` (or close old admin tabs) so the browser is not posting a stale Server Action ID.
+See [`docs/licensing.md`](docs/licensing.md). Customer public sites display the customer brand — not the product vendor brand.
