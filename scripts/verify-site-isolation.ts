@@ -85,13 +85,53 @@ function testPublicAndAdminScopeBySite() {
 
   assert.match(pub, /resolvePublicSite/);
   assert.match(pub, /eq\("site_id", siteId\)|withSiteFilter/);
+  assert.match(pub, /emptyResolvedPortfolio/);
+  assert.match(pub, /source: "error"/);
+  assert.equal(
+    /Example Studio/.test(pub),
+    false,
+    "public.ts must not hardcode Example Studio demo content",
+  );
   assert.match(admin, /resolveAdminSite/);
   assert.match(admin, /eq\("site_id", siteId\)/);
+  assert.match(admin, /emptyResolvedPortfolio/);
+  assert.match(admin, /isOwnerSite/);
   assert.match(auth, /resolveAdminSite\(user\)/);
   assert.match(site, /portfolio_site_domains/);
   assert.match(site, /is_owner_site/);
   assert.match(site, /customer-\$/);
   assert.match(site, /Never trusts client-provided site_id/);
+  assert.match(site, /OWNER_PUBLIC_DOMAINS/);
+  assert.match(site, /Refusing to create a new site for the owner/);
+  assert.match(site, /seedEmptyCustomerSiteContent/);
+  assert.equal(
+    /seedEmptySiteContent\(/.test(site),
+    false,
+    "owner path must not call a generic seedEmptySiteContent that could touch owner data",
+  );
+}
+
+function testOwnerNeverGetsCustomerProvisioning() {
+  const site = read("lib/cms/site.ts");
+  assert.match(site, /if \(isOwnerAdmin\)/);
+  assert.match(site, /fetchOwnerSite/);
+  assert.match(site, /Refusing to create a new site for the owner/);
+  // Owner block must return before customer slug provisioning call.
+  const ownerIdx = site.indexOf("if (isOwnerAdmin)");
+  const customerProvisionIdx = site.indexOf("customerSlugForUser(user.id)");
+  assert.ok(ownerIdx >= 0 && customerProvisionIdx > ownerIdx);
+}
+
+function testDefaultsKeepDemoOutOfErrorPath() {
+  const defaults = read("lib/cms/defaults.ts");
+  assert.match(defaults, /emptyResolvedPortfolio/);
+  assert.match(defaults, /source: "error"/);
+  const emptyFn = defaults.slice(defaults.indexOf("function emptyResolvedPortfolio"));
+  assert.equal(
+    /Example Studio/.test(emptyFn),
+    false,
+    "emptyResolvedPortfolio must not include Example Studio",
+  );
 }
 
 function testMigrationIsolation() {
@@ -209,6 +249,8 @@ function main() {
   testNoGlobalSettingsSingletonInApp();
   testMutationsRequireSiteId();
   testPublicAndAdminScopeBySite();
+  testOwnerNeverGetsCustomerProvisioning();
+  testDefaultsKeepDemoOutOfErrorPath();
   testMigrationIsolation();
   testGrantDoesNotAttachCustomersToOwnerSite();
   testCrossTenantScenariosDocumentedInCode();

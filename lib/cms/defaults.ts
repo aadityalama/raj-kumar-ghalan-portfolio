@@ -347,4 +347,93 @@ export function fallbackPortfolio(): PublicPortfolio {
   };
 }
 
+/**
+ * Empty CMS shell used when a resolved site's DB lookup fails.
+ * Intentionally NOT the neutral demo company/role placeholders from config defaults.
+ */
+export function emptyResolvedPortfolio(
+  site: PublicPortfolio["site"],
+  resolutionError: string,
+): PublicPortfolio {
+  return {
+    settings: {
+      hero_title: "",
+      hero_subtitle: "",
+      hero_positioning: "",
+      hero_body: "",
+      about_title: "",
+      about_body: "",
+      about_body_secondary: "",
+      about_experience_label: "",
+      journey_title: "",
+      journey_description: "",
+      philosophy: "",
+      content_title: "",
+      content_description: "",
+      content_youtube_title: "",
+      content_youtube_body: "",
+      market_title: "",
+      market_description: "",
+      market_profile: "",
+      market_note: "",
+      market_followers: "",
+      market_posts: "",
+      market_facebook_url: "",
+      hero_image_url: "",
+      website_name: "",
+      brand_name: "",
+      wordmark: "",
+      logo_url: "",
+      favicon_url: "",
+      accent_color: "#3DDC97",
+      theme_preference: "dark",
+      copyright_text: "",
+      site_url: "",
+      onboarding_completed: true,
+      site_id: site?.id,
+    },
+    sections: [],
+    gallery: [],
+    projects: [],
+    experience: [],
+    skills: [],
+    socials: [],
+    contact: { email: "", phone: "", location: "", message: "" },
+    seo: {
+      site_title: "",
+      meta_description: "",
+      keywords: [],
+      og_title: "",
+      og_description: "",
+      og_image: "",
+    },
+    productSettings: {
+      section_title: "",
+      case_title: "",
+      case_eyebrow: "",
+      live_url: "",
+      category: "",
+      short_description: "",
+      problem_title: "",
+      problem_body: "",
+      vision_title: "",
+      vision_body: "",
+      built_title: "",
+      built_body: "",
+      tech_title: "",
+      tech_body: "",
+      philosophy_title: "",
+      philosophy_body: "",
+      technologies: [],
+      visible: false,
+      sort_order: 0,
+    },
+    productCards: [],
+    productFeatures: [],
+    source: "error",
+    site,
+    resolutionError,
+  };
+}
+
 export { experience, site };

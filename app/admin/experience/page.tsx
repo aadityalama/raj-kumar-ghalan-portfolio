@@ -5,11 +5,23 @@ import { getAdminCollections } from "@/lib/cms/admin-data";
 
 export default async function AdminExperiencePage() {
   await requireAdmin();
-  const { experience } = await getAdminCollections();
+  const { experience, resolutionError, siteId, siteSlug, isOwnerSite } = await getAdminCollections();
 
   return (
     <div>
       <h1 className="text-4xl tracking-[-0.04em]">Experience</h1>
+      {resolutionError ? (
+        <article className="admin-notice mt-6 border border-red-500/40 text-sm text-muted">
+          <p className="text-text">Could not load Experience from the resolved site</p>
+          <p className="mt-2 font-mono text-xs text-red-200">{resolutionError}</p>
+        </article>
+      ) : null}
+      {siteId ? (
+        <p className="mt-3 font-mono text-[11px] text-subtle">
+          Site: {siteSlug || "unknown"} · {siteId}
+          {isOwnerSite ? " · owner" : " · customer"}
+        </p>
+      ) : null}
       <article className="admin-card mt-8 p-5">
         <h2 className="text-lg">Add role</h2>
         <ActionForm action={saveExperienceAction} className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -26,6 +38,12 @@ export default async function AdminExperiencePage() {
         </ActionForm>
       </article>
       <div className="mt-8 grid gap-4">
+        {experience.length === 0 ? (
+          <p className="text-sm text-muted">
+            No Experience rows for this site. Existing owner records are never replaced with
+            neutral demo company placeholders.
+          </p>
+        ) : null}
         {experience.map((item) => (
           <article key={item.id} className="admin-card p-5">
             <ActionForm action={saveExperienceAction} className="grid gap-3 sm:grid-cols-2">

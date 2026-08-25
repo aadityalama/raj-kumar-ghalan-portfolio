@@ -16,14 +16,35 @@ const actions = [
 export default async function AdminHomePage() {
   await requireAdmin();
   const stats = await getAdminDashboard();
-  const { settings } = await getAdminCollections();
+  const collections = await getAdminCollections();
+  const { settings, resolutionError, siteId, siteSlug, isOwnerSite } = collections;
   const email = adminEmail();
-  const needsOnboarding = settings.onboarding_completed === false;
+  const needsOnboarding = settings.onboarding_completed === false && !isOwnerSite;
 
   return (
     <div>
       <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">Overview</p>
       <h1 className="mt-3 text-4xl tracking-[-0.04em]">Dashboard</h1>
+
+      {resolutionError || stats.resolutionError ? (
+        <article className="admin-notice mt-6 border border-red-500/40 text-sm text-muted">
+          <p className="text-text">Site resolution / CMS error</p>
+          <p className="mt-2 font-mono text-xs text-red-200">
+            {resolutionError || stats.resolutionError}
+          </p>
+          <p className="mt-3 text-xs">
+            Demo company placeholders are not shown when the owner site cannot be
+            loaded. Fix migrations / OWNER_ADMIN_EMAIL / domain mapping, then refresh.
+          </p>
+        </article>
+      ) : null}
+
+      {siteId ? (
+        <p className="mt-4 font-mono text-[11px] text-subtle">
+          Editing site: {siteSlug || "unknown"} · {siteId}
+          {isOwnerSite ? " · owner site" : " · customer site"}
+        </p>
+      ) : null}
 
       {needsOnboarding ? (
         <article className="admin-notice mt-6 text-sm text-muted">
@@ -49,12 +70,12 @@ export default async function AdminHomePage() {
             <li>
               {stats.cmsReady
                 ? "CMS tables are reachable."
-                : "Run supabase/migrations in order (001 through 007) in this portfolio’s Supabase project."}
+                : "Run supabase/migrations in order (001 through 009) in this portfolio’s Supabase project. Do not run demo_content.sql on the owner database."}
             </li>
             <li>
               {stats.adminGranted
                 ? `Write access is granted for ${email || "the configured admin"}.`
-                : "Grant admin access after creating the Auth user that matches server-only ADMIN_EMAIL. Writes stay blocked by RLS until then."}
+                : "Grant admin access after creating the Auth user that matches server-only ADMIN_EMAIL / OWNER_ADMIN_EMAIL. Writes stay blocked by RLS until then."}
             </li>
           </ul>
         </article>
@@ -96,7 +117,8 @@ export default async function AdminHomePage() {
               ))
             ) : (
               <li className="text-sm text-muted">
-                No CMS updates yet. Apply the SQL migrations, then edit content.
+                No CMS updates yet for this site. If this is the owner site and you expected existing
+                content, check site_id mapping — demo seed content is not injected here.
               </li>
             )}
           </ul>
