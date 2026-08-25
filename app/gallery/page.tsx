@@ -6,38 +6,42 @@ import { PhotoGallery } from "@/components/sections/photo-gallery";
 import { SiteFooter } from "@/components/sections/site-footer";
 import { Container } from "@/components/ui/container";
 import { site } from "@/config/site";
+import { brandDisplayName, brandWordmark } from "@/lib/cms/branding";
 import {
   getPublicGallery,
   getPublicPortfolio,
   navItems,
 } from "@/lib/cms/public";
 
-const galleryTitle = "Photo Gallery | Raj Kumar Ghalan";
-const galleryDescription =
-  "Explore photos from Raj Kumar Ghalan's professional journey, projects, work, and experiences.";
+export async function generateMetadata(): Promise<Metadata> {
+  const portfolio = await getPublicPortfolio();
+  const name = brandDisplayName(portfolio.settings);
+  const galleryTitle = `Photo Gallery | ${name}`;
+  const galleryDescription = `Explore photos from ${name}'s work, projects, and experiences.`;
 
-export const metadata: Metadata = {
-  title: {
-    absolute: galleryTitle,
-  },
-  description: galleryDescription,
-  alternates: {
-    canonical: "/gallery",
-  },
-  openGraph: {
-    type: "website",
-    locale: site.locale,
-    url: "/gallery",
-    title: galleryTitle,
+  return {
+    title: {
+      absolute: galleryTitle,
+    },
     description: galleryDescription,
-    siteName: site.name,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: galleryTitle,
-    description: galleryDescription,
-  },
-};
+    alternates: {
+      canonical: "/gallery",
+    },
+    openGraph: {
+      type: "website",
+      locale: site.locale,
+      url: "/gallery",
+      title: galleryTitle,
+      description: galleryDescription,
+      siteName: portfolio.settings.website_name || name,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: galleryTitle,
+      description: galleryDescription,
+    },
+  };
+}
 
 export default async function GalleryPage() {
   const [portfolio, photos] = await Promise.all([
@@ -45,11 +49,12 @@ export default async function GalleryPage() {
     getPublicGallery(),
   ]);
   const items = navItems(portfolio);
+  const wordmark = brandWordmark(portfolio.settings);
 
   return (
     <>
       <ScrollProgress />
-      <SiteHeader items={items} />
+      <SiteHeader items={items} wordmark={wordmark} />
       <Cursor />
       <main id="main" className="pt-[var(--nav-height)]">
         <section className="relative scroll-mt-24 py-16 sm:py-20 lg:py-28">
@@ -74,6 +79,8 @@ export default async function GalleryPage() {
         positioning={portfolio.settings.hero_positioning}
         items={items}
         socials={portfolio.socials}
+        wordmark={wordmark}
+        copyrightText={portfolio.settings.copyright_text}
       />
     </>
   );

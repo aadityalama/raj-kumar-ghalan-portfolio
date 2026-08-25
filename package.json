@@ -1,6 +1,6 @@
 {
-  "name": "raj-kumar-ghalan",
-  "version": "0.1.0",
+  "name": "portfolio-cms",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

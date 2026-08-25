@@ -3,21 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ADMIN_PRODUCT_NAME } from "@/config/admin";
 import { logoutAction } from "@/lib/cms/actions";
 
 const links = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/content", label: "Homepage / About" },
-  { href: "/admin/market", label: "NEPSE Profile" },
-  { href: "/admin/gallery", label: "Gallery" },
-  { href: "/admin/projects", label: "Projects" },
-  { href: "/admin/product", label: "Product" },
+  { href: "/admin/content", label: "Homepage" },
+  { href: "/admin/sections", label: "Homepage sections" },
   { href: "/admin/experience", label: "Experience" },
+  { href: "/admin/projects", label: "Projects" },
   { href: "/admin/skills", label: "Skills" },
+  { href: "/admin/gallery", label: "Gallery" },
+  { href: "/admin/product", label: "Product / Featured Work" },
+  { href: "/admin/market", label: "Spotlight" },
   { href: "/admin/social", label: "Social" },
-  { href: "/admin/sections", label: "Sections" },
   { href: "/admin/seo", label: "SEO" },
   { href: "/admin/contact", label: "Contact" },
+  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/onboarding", label: "Setup wizard" },
 ];
 
 export function AdminShell({
@@ -32,7 +35,7 @@ export function AdminShell({
 
   const nav = (
     <>
-      <p className="font-mono text-[11px] tracking-[0.22em]">ADMIN</p>
+      <p className="font-mono text-[11px] tracking-[0.22em]">{ADMIN_PRODUCT_NAME.toUpperCase()}</p>
       <p className="mt-2 text-sm text-muted">{email}</p>
       <nav className="mt-6 grid gap-1">
         {links.map((link) => (
@@ -40,7 +43,7 @@ export function AdminShell({
             key={link.href}
             href={link.href}
             className="admin-link"
-            data-active={pathname === link.href}
+            data-active={pathname === link.href || (link.href !== "/admin" && pathname.startsWith(link.href))}
             onClick={() => setOpen(false)}
           >
             {link.label}
@@ -48,8 +51,11 @@ export function AdminShell({
         ))}
       </nav>
       <div className="mt-8 grid gap-2">
-        <Link href="/" className="admin-link">
-          View site
+        <Link href="/" target="_blank" className="admin-link">
+          Preview site
+        </Link>
+        <Link href="/admin/preview" className="admin-link">
+          Preview checklist
         </Link>
         <form action={logoutAction}>
           <button type="submit" className="admin-link w-full">
@@ -63,7 +69,7 @@ export function AdminShell({
   return (
     <div className="admin-shell dark min-h-dvh bg-bg text-text">
       <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="admin-sidebar hidden px-4 py-5 lg:sticky lg:top-0 lg:block lg:h-dvh">
+        <aside className="admin-sidebar hidden px-4 py-5 lg:sticky lg:top-0 lg:block lg:h-dvh lg:overflow-y-auto">
           {nav}
         </aside>
         {open ? (

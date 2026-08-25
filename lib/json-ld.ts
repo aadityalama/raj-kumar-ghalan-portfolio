@@ -1,66 +1,50 @@
-import { site, socials } from "@/config/site";
+import { brandDisplayName } from "@/lib/cms/branding";
+import type { PublicPortfolio } from "@/lib/cms/types";
+import { site as fallbackSite } from "@/config/site";
 
-export function personJsonLd() {
-  const sameAs = [
-    socials.youtube.href,
-    socials.facebook.href,
-    socials.facebookNepse.href,
-    socials.instagram.href,
-    socials.tiktok.href,
-    socials.linkedin.href,
-  ].filter(Boolean);
+export function personJsonLd(portfolio?: PublicPortfolio) {
+  const settings = portfolio?.settings;
+  const contact = portfolio?.contact;
+  const socials = portfolio?.socials || [];
+  const name = settings ? brandDisplayName(settings) : fallbackSite.name;
+  const description =
+    portfolio?.seo.meta_description || settings?.hero_body || fallbackSite.description;
+  const url = settings?.site_url || fallbackSite.url;
+  const image = settings?.hero_image_url
+    ? settings.hero_image_url.startsWith("http")
+      ? settings.hero_image_url
+      : `${url}${settings.hero_image_url}`
+    : undefined;
+  const sameAs = socials.map((item) => item.href).filter(Boolean);
 
   return {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: site.name,
-    jobTitle: "Market Analyst, Technical Analyst, Digital Builder, Creator",
-    description: site.description,
-    url: site.url,
-    email: site.email || undefined,
-    image: `${site.url}${site.portrait.src}`,
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "KR",
-    },
-    knowsAbout: [
-      "NEPSE",
-      "Technical analysis",
-      "Market analysis",
-      "Investor education",
-      "Digital products",
-      "Personal finance",
-      "Financial technology",
-      "Content creation",
-    ],
+    name,
+    jobTitle: settings?.hero_positioning || fallbackSite.positioning,
+    description,
+    url,
+    email: contact?.email || undefined,
+    image,
     sameAs,
   };
 }
 
-export function organizationJsonLd() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "FIRE Nepal",
-    url: "https://www.firenepal.com",
-    founder: {
-      "@type": "Person",
-      name: site.name,
-    },
-  };
-}
+export function websiteJsonLd(portfolio?: PublicPortfolio) {
+  const settings = portfolio?.settings;
+  const name = settings ? brandDisplayName(settings) : fallbackSite.name;
+  const url = settings?.site_url || fallbackSite.url;
 
-export function websiteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: site.name,
-    url: site.url,
-    description: site.description,
+    name,
+    url,
+    description: portfolio?.seo.meta_description || fallbackSite.description,
     inLanguage: "en",
     publisher: {
       "@type": "Person",
-      name: site.name,
+      name,
     },
   };
 }

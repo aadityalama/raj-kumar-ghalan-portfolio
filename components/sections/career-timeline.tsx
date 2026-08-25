@@ -8,10 +8,10 @@ export function CareerTimeline() {
       <Container>
         <Reveal>
           <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.28em] text-accent">
-            08 / Path
+            Path
           </p>
           <h2 className="max-w-2xl text-[clamp(2rem,4.4vw,3.6rem)] font-medium leading-[1.05] tracking-[-0.04em]">
-            Nepal to market analyst and product creator
+            The journey so far
           </h2>
         </Reveal>
       </Container>
@@ -28,7 +28,7 @@ export function CareerTimeline() {
               <h3 className="mt-3 text-xl tracking-[-0.03em]">{item.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted">{item.body}</p>
               {index < careerJourney.length - 1 ? (
-                <span className="sr-only">then</span>
+                <span className="sr-only">Next</span>
               ) : null}
             </li>
           ))}

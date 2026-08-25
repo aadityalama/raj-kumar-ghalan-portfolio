@@ -1,16 +1,26 @@
 export const GALLERY_CATEGORIES = [
   "Professional",
-  "KP Electric / Work",
-  "NEPSE / Market Analysis",
-  "FIRE Nepal",
-  "YouTube / Content Creation",
+  "Work",
   "Projects",
-  "Nepal",
-  "Korea",
+  "Travel",
+  "Events",
   "Personal",
+  "Other",
 ] as const;
 
 export type GalleryCategory = (typeof GALLERY_CATEGORIES)[number];
+
+export type ThemePreference = "dark" | "light" | "system";
+
+export type SiteRow = {
+  id: string;
+  slug: string;
+  name: string;
+  plan_tier: "demo" | "starter" | "pro" | "agency";
+  onboarding_completed: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export type SettingsRow = {
   hero_title: string;
@@ -36,6 +46,17 @@ export type SettingsRow = {
   market_posts: string;
   market_facebook_url: string;
   hero_image_url: string;
+  website_name?: string;
+  brand_name?: string;
+  wordmark?: string;
+  logo_url?: string;
+  favicon_url?: string;
+  accent_color?: string;
+  theme_preference?: ThemePreference | string;
+  copyright_text?: string;
+  site_url?: string;
+  onboarding_completed?: boolean;
+  site_id?: string;
   updated_at?: string;
 };
 
@@ -44,8 +65,11 @@ export type SectionRow = {
   section_key: string;
   label: string;
   href: string;
+  title?: string;
+  description?: string;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   updated_at?: string;
 };
 
@@ -59,6 +83,7 @@ export type GalleryRow = {
   featured: boolean;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -77,6 +102,7 @@ export type ProjectRow = {
   featured: boolean;
   published: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -91,6 +117,7 @@ export type ExperienceRow = {
   technologies: string[];
   featured: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -102,6 +129,7 @@ export type SkillRow = {
   level: string;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -114,6 +142,7 @@ export type SocialRow = {
   note: string;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -123,6 +152,7 @@ export type ContactRow = {
   phone: string;
   location: string;
   message: string;
+  site_id?: string;
   updated_at?: string;
 };
 
@@ -133,11 +163,31 @@ export type SeoRow = {
   og_title: string;
   og_description: string;
   og_image: string;
+  site_id?: string;
   updated_at?: string;
 };
 
 export type ProductSettingsRow = {
   section_title: string;
+  case_title?: string;
+  case_eyebrow?: string;
+  live_url?: string;
+  category?: string;
+  short_description?: string;
+  problem_title?: string;
+  problem_body?: string;
+  vision_title?: string;
+  vision_body?: string;
+  built_title?: string;
+  built_body?: string;
+  tech_title?: string;
+  tech_body?: string;
+  philosophy_title?: string;
+  philosophy_body?: string;
+  technologies?: string[];
+  visible?: boolean;
+  sort_order?: number;
+  site_id?: string;
   updated_at?: string;
 };
 
@@ -148,8 +198,10 @@ export type ProductCardRow = {
   image_url: string;
   image_path: string | null;
   link_url: string;
+  category?: string;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -160,6 +212,7 @@ export type ProductFeatureRow = {
   description: string;
   visible: boolean;
   sort_order: number;
+  site_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -178,4 +231,5 @@ export type PublicPortfolio = {
   productCards: ProductCardRow[];
   productFeatures: ProductFeatureRow[];
   source: "cms" | "fallback";
+  site?: SiteRow | null;
 };

@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { site } from "@/config/site";
+import { brandDisplayName, sanitizeAccentColor } from "@/lib/cms/branding";
 import { getPublicPortfolio } from "@/lib/cms/public";
-import { organizationJsonLd, personJsonLd, websiteJsonLd } from "@/lib/json-ld";
+import { personJsonLd, websiteJsonLd } from "@/lib/json-ld";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,35 +27,41 @@ const instrument = Instrument_Serif({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { seo } = await getPublicPortfolio();
+  const portfolio = await getPublicPortfolio();
+  const { seo, settings } = portfolio;
+  const name = brandDisplayName(settings);
   const title = seo.site_title || site.title;
   const description = seo.meta_description || site.description;
   const ogTitle = seo.og_title || title;
   const ogDescription = seo.og_description || description;
-  const ogImage = seo.og_image || site.portrait.src;
+  const ogImage = seo.og_image || settings.hero_image_url || site.portrait.src;
+  const canonicalBase = settings.site_url || site.url;
 
   return {
-    metadataBase: new URL(site.url),
+    metadataBase: new URL(canonicalBase),
     title: {
       default: title,
-      template: `%s · ${site.name}`,
+      template: `%s · ${name}`,
     },
     description,
     keywords: seo.keywords.length ? seo.keywords : [...site.keywords],
-    applicationName: site.name,
-    authors: [{ name: site.name, url: site.url }],
-    creator: site.name,
-    publisher: site.name,
+    applicationName: settings.website_name || name,
+    authors: [{ name, url: canonicalBase }],
+    creator: name,
+    publisher: name,
     alternates: {
       canonical: "/",
     },
+    icons: settings.favicon_url
+      ? { icon: settings.favicon_url }
+      : undefined,
     openGraph: {
       type: "website",
       locale: site.locale,
       url: "/",
       title: ogTitle,
       description: ogDescription,
-      siteName: site.name,
+      siteName: settings.website_name || name,
       images: ogImage ? [{ url: ogImage }] : undefined,
     },
     twitter: {
@@ -80,18 +87,26 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const portfolio = await getPublicPortfolio();
+  const accent = sanitizeAccentColor(portfolio.settings.accent_color);
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${instrument.variable} h-full antialiased dark`}
+      style={{ ["--accent" as string]: accent }}
     >
       <body className="min-h-full bg-bg text-text" suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify([personJsonLd(), websiteJsonLd(), organizationJsonLd()]),
+            __html: JSON.stringify([personJsonLd(portfolio), websiteJsonLd(portfolio)]),
           }}
         />
         <ThemeProvider>

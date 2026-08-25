@@ -9,9 +9,9 @@ export default async function AdminMarketPage() {
 
   return (
     <div>
-      <h1 className="text-4xl tracking-[-0.04em]">NEPSE Market Analyst</h1>
+      <h1 className="text-4xl tracking-[-0.04em]">Spotlight</h1>
       <p className="mt-3 max-w-2xl text-sm text-muted">
-        Keep this educational. Do not add profit or guaranteed-return claims.
+        Optional focus section for a specialty, audience, or professional spotlight. Keep claims accurate.
       </p>
       <ActionForm action={saveSettingsAction} className="mt-8 grid gap-5">
         <label className="grid gap-2 text-sm">

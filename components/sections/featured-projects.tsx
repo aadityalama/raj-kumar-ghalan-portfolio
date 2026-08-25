@@ -13,11 +13,11 @@ export function FeaturedProjects({ items }: { items: ProjectRow[] }) {
     <Section
       id="projects"
       eyebrow="03 / Work"
-      title="Things I’m Building"
-      description="From NEPSE analysis and financial independence to digital commerce, I build products around real-world problems."
+      title="Selected work"
+      description="Projects that show how ideas become usable products."
     >
       {items.map((project, index) => {
-        const fallback = project.title === projects.fireNepal.name ? projects.fireNepal : null;
+        const fallback = project.title === projects.featured.name ? projects.featured : null;
         return (
           <Reveal key={project.id}>
             <div className={index > 0 ? "mt-6" : undefined}>

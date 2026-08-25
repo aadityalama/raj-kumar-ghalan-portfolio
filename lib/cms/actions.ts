@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/cms/admin-auth";
+import { requireSiteEditor } from "@/lib/cms/admin-auth";
+import { sanitizeAccentColor } from "@/lib/cms/branding";
 import { MEDIA_BUCKET, profileStoragePathFromUrl, storageObjectPath, validateImageFile } from "@/lib/cms/media";
 import { adminEmail, hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function refreshPublic() {
   revalidatePath("/", "layout");
+  revalidatePath("/gallery", "page");
   revalidatePath("/admin", "layout");
 }
 
@@ -57,15 +59,13 @@ export async function logoutAction() {
 }
 
 async function adminClient() {
-  const user = await requireAdmin();
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("portfolio_admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!data) redirect("/admin");
-  return supabase;
+  const { supabase, siteId } = await requireSiteEditor();
+  return { supabase, siteId };
+}
+
+function withSite<T extends Record<string, unknown>>(payload: T, siteId: string | null) {
+  if (!siteId) return payload;
+  return { ...payload, site_id: siteId };
 }
 
 const SETTINGS_FIELDS = [
@@ -94,10 +94,26 @@ const SETTINGS_FIELDS = [
   "market_facebook_url",
 ] as const;
 
+const BRAND_FIELDS = [
+  "website_name",
+  "brand_name",
+  "wordmark",
+  "logo_url",
+  "favicon_url",
+  "copyright_text",
+  "site_url",
+] as const;
+
 export async function saveSettingsAction(formData: FormData) {
-  const supabase = await adminClient();
-  const { data: current } = await supabase.from("portfolio_settings").select("*").eq("id", 1).maybeSingle();
-  const payload: Record<string, string | number> = { id: 1, ...(current || {}) };
+  const { supabase, siteId } = await adminClient();
+  const currentQuery = siteId
+    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
+    : supabase.from("portfolio_settings").select("*").eq("id", 1);
+  const { data: current } = await currentQuery.maybeSingle();
+  const payload: Record<string, string | number | boolean> = withSite(
+    { id: current?.id || 1, ...(current || {}) },
+    siteId,
+  );
 
   for (const key of SETTINGS_FIELDS) {
     if (formData.has(key)) payload[key] = String(formData.get(key) || "");
@@ -123,20 +139,175 @@ export async function saveSettingsAction(formData: FormData) {
   return { ok: true };
 }
 
+export async function saveBrandSettingsAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const currentQuery = siteId
+    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
+    : supabase.from("portfolio_settings").select("*").eq("id", 1);
+  const { data: current } = await currentQuery.maybeSingle();
+  const payload: Record<string, string | number | boolean> = withSite(
+    { id: current?.id || 1, ...(current || {}) },
+    siteId,
+  );
+
+  for (const key of BRAND_FIELDS) {
+    if (formData.has(key)) payload[key] = String(formData.get(key) || "");
+  }
+
+  if (formData.has("accent_color")) {
+    payload.accent_color = sanitizeAccentColor(String(formData.get("accent_color") || ""));
+  }
+
+  const theme = String(formData.get("theme_preference") || "dark");
+  payload.theme_preference = ["dark", "light", "system"].includes(theme) ? theme : "dark";
+
+  const logoFile = formData.get("logo_file");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("brand", logoFile);
+      payload.logo_url = uploaded.url;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Logo upload failed." };
+    }
+  }
+
+  const faviconFile = formData.get("favicon_file");
+  if (faviconFile instanceof File && faviconFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("brand", faviconFile);
+      payload.favicon_url = uploaded.url;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Favicon upload failed." };
+    }
+  }
+
+  const { error } = await supabase.from("portfolio_settings").upsert(payload);
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function saveOnboardingAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const step = String(formData.get("step") || "");
+  const currentQuery = siteId
+    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
+    : supabase.from("portfolio_settings").select("*").eq("id", 1);
+  const { data: current } = await currentQuery.maybeSingle();
+  const payload: Record<string, string | number | boolean> = withSite(
+    { id: current?.id || 1, ...(current || {}) },
+    siteId,
+  );
+
+  if (formData.has("brand_name") || formData.has("hero_title")) {
+    const name = String(formData.get("brand_name") || formData.get("hero_title") || "").trim();
+    if (name) {
+      payload.brand_name = name;
+      payload.hero_title = name;
+      payload.website_name = String(formData.get("website_name") || name);
+      payload.wordmark = String(formData.get("wordmark") || name.toUpperCase());
+    }
+  }
+  if (formData.has("hero_positioning")) {
+    payload.hero_positioning = String(formData.get("hero_positioning") || "");
+  }
+  if (formData.has("hero_subtitle")) {
+    payload.hero_subtitle = String(formData.get("hero_subtitle") || "");
+  }
+  if (formData.has("about_body")) {
+    payload.about_body = String(formData.get("about_body") || "");
+  }
+  if (formData.has("accent_color")) {
+    payload.accent_color = sanitizeAccentColor(String(formData.get("accent_color") || ""));
+  }
+  if (formData.has("theme_preference")) {
+    const theme = String(formData.get("theme_preference") || "dark");
+    payload.theme_preference = ["dark", "light", "system"].includes(theme) ? theme : "dark";
+  }
+
+  const heroFile = formData.get("hero_image");
+  if (heroFile instanceof File && heroFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("profile", heroFile);
+      payload.hero_image_url = uploaded.url;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Image upload failed." };
+    }
+  }
+
+  if (step === "publish") {
+    payload.onboarding_completed = true;
+    if (siteId) {
+      await supabase
+        .from("portfolio_sites")
+        .update({ onboarding_completed: true, name: String(payload.brand_name || payload.website_name || "Portfolio") })
+        .eq("id", siteId);
+    }
+  }
+
+  const { error } = await supabase.from("portfolio_settings").upsert(payload);
+  if (error) return { error: error.message };
+
+  // Optional first project during onboarding
+  const projectTitle = String(formData.get("project_title") || "").trim();
+  if (projectTitle) {
+    await supabase.from("portfolio_projects").insert(
+      withSite(
+        {
+          title: projectTitle,
+          description: String(formData.get("project_description") || ""),
+          category: String(formData.get("project_category") || ""),
+          technologies: [],
+          live_url: String(formData.get("project_url") || ""),
+          featured: true,
+          published: true,
+          sort_order: 10,
+        },
+        siteId,
+      ),
+    );
+  }
+
+  // Optional social links
+  for (const platform of ["linkedin", "github", "instagram", "youtube"] as const) {
+    const href = String(formData.get(`social_${platform}`) || "").trim();
+    if (!href) continue;
+    await supabase.from("portfolio_social_links").insert(
+      withSite(
+        {
+          platform,
+          label: platform[0].toUpperCase() + platform.slice(1),
+          href,
+          note: "",
+          visible: true,
+          sort_order: 10,
+        },
+        siteId,
+      ),
+    );
+  }
+
+  refreshPublic();
+  if (step === "publish") redirect("/admin?onboarding=done");
+  return { ok: true, next: String(formData.get("next") || "") };
+}
+
 export async function deleteHeroImageAction() {
-  const supabase = await adminClient();
-  const { data: current, error: readError } = await supabase
-    .from("portfolio_settings")
-    .select("hero_image_url")
-    .eq("id", 1)
-    .maybeSingle();
+  const { supabase, siteId } = await adminClient();
+  const currentQuery = siteId
+    ? supabase.from("portfolio_settings").select("hero_image_url,id").eq("site_id", siteId)
+    : supabase.from("portfolio_settings").select("hero_image_url,id").eq("id", 1);
+  const { data: current, error: readError } = await currentQuery.maybeSingle();
 
   if (readError) return { error: readError.message };
   if (!current?.hero_image_url) return { error: "No profile photo to remove." };
 
   const storagePath = profileStoragePathFromUrl(current.hero_image_url);
 
-  const { error } = await supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("id", 1);
+  const updateQuery = siteId
+    ? supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("site_id", siteId)
+    : supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("id", 1);
+  const { error } = await updateQuery;
   if (error) return { error: error.message };
 
   if (storagePath) {
@@ -154,21 +325,25 @@ export async function deleteHeroImageAction() {
 }
 
 export async function saveContactAction(formData: FormData) {
-  const supabase = await adminClient();
-  const payload = {
-    email: String(formData.get("email") || ""),
-    phone: String(formData.get("phone") || ""),
-    location: String(formData.get("location") || ""),
-    message: String(formData.get("message") || ""),
-  };
-  const { error } = await supabase.from("portfolio_contact").upsert({ id: 1, ...payload });
+  const { supabase, siteId } = await adminClient();
+  const payload = withSite(
+    {
+      id: 1,
+      email: String(formData.get("email") || ""),
+      phone: String(formData.get("phone") || ""),
+      location: String(formData.get("location") || ""),
+      message: String(formData.get("message") || ""),
+    },
+    siteId,
+  );
+  const { error } = await supabase.from("portfolio_contact").upsert(payload);
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function saveSeoAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const keywords = String(formData.get("keywords") || "")
     .split(",")
     .map((item) => item.trim())
@@ -183,28 +358,34 @@ export async function saveSeoAction(formData: FormData) {
       return { error: error instanceof Error ? error.message : "Image upload failed." };
     }
   }
-  const payload = {
-    site_title: String(formData.get("site_title") || ""),
-    meta_description: String(formData.get("meta_description") || ""),
-    keywords,
-    og_title: String(formData.get("og_title") || ""),
-    og_description: String(formData.get("og_description") || ""),
-    og_image: ogImage,
-  };
-  const { error } = await supabase.from("portfolio_seo").upsert({ id: 1, ...payload });
+  const payload = withSite(
+    {
+      id: 1,
+      site_title: String(formData.get("site_title") || ""),
+      meta_description: String(formData.get("meta_description") || ""),
+      keywords,
+      og_title: String(formData.get("og_title") || ""),
+      og_description: String(formData.get("og_description") || ""),
+      og_image: ogImage,
+    },
+    siteId,
+  );
+  const { error } = await supabase.from("portfolio_seo").upsert(payload);
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function saveSectionAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const id = String(formData.get("id") || "");
   const { error } = await supabase
     .from("portfolio_sections")
     .update({
       label: String(formData.get("label") || ""),
       href: String(formData.get("href") || ""),
+      title: String(formData.get("title") || ""),
+      description: String(formData.get("description") || ""),
       visible: formData.get("visible") === "on",
       sort_order: Number(formData.get("sort_order") || 0),
     })
@@ -215,7 +396,7 @@ export async function saveSectionAction(formData: FormData) {
 }
 
 export async function saveSocialAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const payload = {
     platform: String(formData.get("platform") || ""),
@@ -227,7 +408,7 @@ export async function saveSocialAction(formData: FormData) {
   };
   const query = id
     ? supabase.from("portfolio_social_links").update(payload).eq("id", id)
-    : supabase.from("portfolio_social_links").insert(payload);
+    : supabase.from("portfolio_social_links").insert(withSite(payload, siteId));
   const { error } = await query;
   if (error) return { error: error.message };
   refreshPublic();
@@ -235,14 +416,14 @@ export async function saveSocialAction(formData: FormData) {
 }
 
 export async function deleteSocialAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const { error } = await supabase.from("portfolio_social_links").delete().eq("id", String(formData.get("id") || ""));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
-async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "profile" | "social", file: File) {
+async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "profile" | "social" | "brand", file: File) {
   const invalid = validateImageFile(file);
   if (invalid) throw new Error(invalid);
   const supabase = await createSupabaseServerClient();
@@ -258,7 +439,7 @@ async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "pro
 }
 
 export async function saveGalleryAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const files = formData.getAll("files").filter((item): item is File => item instanceof File && item.size > 0);
   const single = formData.get("file");
@@ -279,7 +460,7 @@ export async function saveGalleryAction(formData: FormData) {
       } catch (error) {
         return { error: error instanceof Error ? error.message : "Image upload failed." };
       }
-      const { error } = await supabase.from("portfolio_gallery").insert({
+      const { error } = await supabase.from("portfolio_gallery").insert(withSite({
         title: file.name.replace(/\.[^.]+$/, ""),
         description: String(formData.get("description") || ""),
         category: String(formData.get("category") || "Personal"),
@@ -288,7 +469,7 @@ export async function saveGalleryAction(formData: FormData) {
         featured: false,
         visible: true,
         sort_order: order,
-      });
+      }, siteId));
       if (error) return { error: error.message };
       order += 10;
     }
@@ -327,14 +508,14 @@ export async function saveGalleryAction(formData: FormData) {
 
   const { error } = id
     ? await supabase.from("portfolio_gallery").update(payload).eq("id", id)
-    : await supabase.from("portfolio_gallery").insert(payload);
+    : await supabase.from("portfolio_gallery").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function deleteGalleryAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
   const { error } = await supabase.from("portfolio_gallery").delete().eq("id", id);
@@ -345,7 +526,7 @@ export async function deleteGalleryAction(formData: FormData) {
 }
 
 export async function saveProjectAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const file = formData.get("file");
   let imageUrl = String(formData.get("image_url") || "");
@@ -379,14 +560,14 @@ export async function saveProjectAction(formData: FormData) {
   };
   const { error } = id
     ? await supabase.from("portfolio_projects").update(payload).eq("id", id)
-    : await supabase.from("portfolio_projects").insert(payload);
+    : await supabase.from("portfolio_projects").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function deleteProjectAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const path = String(formData.get("image_path") || "");
   const { error } = await supabase.from("portfolio_projects").delete().eq("id", String(formData.get("id") || ""));
   if (error) return { error: error.message };
@@ -396,7 +577,7 @@ export async function deleteProjectAction(formData: FormData) {
 }
 
 export async function saveExperienceAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const payload = {
     company: String(formData.get("company") || ""),
@@ -413,14 +594,14 @@ export async function saveExperienceAction(formData: FormData) {
   };
   const { error } = id
     ? await supabase.from("portfolio_experience").update(payload).eq("id", id)
-    : await supabase.from("portfolio_experience").insert(payload);
+    : await supabase.from("portfolio_experience").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function deleteExperienceAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const { error } = await supabase.from("portfolio_experience").delete().eq("id", String(formData.get("id") || ""));
   if (error) return { error: error.message };
   refreshPublic();
@@ -432,7 +613,7 @@ export async function saveSkillAction(
   _prevState: { error?: string; ok?: boolean },
   formData: FormData,
 ): Promise<{ error?: string; ok?: boolean }> {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   // Prefer the id bound into the action (edit forms). Fall back to the hidden
   // field so a plain form post still updates the correct row.
   const id = String(boundId || formData.get("id") || "").trim();
@@ -463,7 +644,7 @@ export async function saveSkillAction(
       return { error: "Skill could not be updated. Refresh and try again." };
     }
   } else {
-    const { error } = await supabase.from("portfolio_skills").insert(payload);
+    const { error } = await supabase.from("portfolio_skills").insert(withSite(payload, siteId));
     if (error) return { error: error.message };
   }
 
@@ -473,7 +654,7 @@ export async function saveSkillAction(
 }
 
 export async function deleteSkillAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const { error } = await supabase.from("portfolio_skills").delete().eq("id", String(formData.get("id") || ""));
   if (error) return { error: error.message };
   refreshPublic();
@@ -481,11 +662,36 @@ export async function deleteSkillAction(formData: FormData) {
 }
 
 export async function saveProductSettingsAction(formData: FormData) {
-  const supabase = await adminClient();
-  const payload = {
-    id: 1,
-    section_title: String(formData.get("section_title") || "The Product").trim() || "The Product",
-  };
+  const { supabase, siteId } = await adminClient();
+  const technologies = String(formData.get("technologies") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const payload = withSite(
+    {
+      id: 1,
+      section_title: String(formData.get("section_title") || "The Product").trim() || "The Product",
+      case_title: String(formData.get("case_title") || ""),
+      case_eyebrow: String(formData.get("case_eyebrow") || "Featured work"),
+      live_url: String(formData.get("live_url") || ""),
+      category: String(formData.get("category") || ""),
+      short_description: String(formData.get("short_description") || ""),
+      problem_title: String(formData.get("problem_title") || "The Problem"),
+      problem_body: String(formData.get("problem_body") || ""),
+      vision_title: String(formData.get("vision_title") || "The Vision"),
+      vision_body: String(formData.get("vision_body") || ""),
+      built_title: String(formData.get("built_title") || "What I Built"),
+      built_body: String(formData.get("built_body") || ""),
+      tech_title: String(formData.get("tech_title") || "Technology"),
+      tech_body: String(formData.get("tech_body") || ""),
+      philosophy_title: String(formData.get("philosophy_title") || "Product philosophy"),
+      philosophy_body: String(formData.get("philosophy_body") || ""),
+      technologies,
+      visible: formData.get("visible") === "on",
+      sort_order: Number(formData.get("sort_order") || 0),
+    },
+    siteId,
+  );
   const { error } = await supabase.from("portfolio_product_settings").upsert(payload);
   if (error) return { error: error.message };
   refreshPublic();
@@ -493,7 +699,7 @@ export async function saveProductSettingsAction(formData: FormData) {
 }
 
 export async function saveProductCardAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const file = formData.get("file");
   let imageUrl = String(formData.get("image_url") || "");
@@ -510,15 +716,19 @@ export async function saveProductCardAction(formData: FormData) {
     }
   }
 
-  const payload = {
-    title: String(formData.get("title") || "").trim() || "Untitled",
-    description: String(formData.get("description") || ""),
-    image_url: imageUrl,
-    image_path: imagePath,
-    link_url: String(formData.get("link_url") || "").trim(),
-    visible: formData.get("visible") === "on",
-    sort_order: Number(formData.get("sort_order") || 0),
-  };
+  const payload = withSite(
+    {
+      title: String(formData.get("title") || "").trim() || "Untitled",
+      description: String(formData.get("description") || ""),
+      category: String(formData.get("category") || ""),
+      image_url: imageUrl,
+      image_path: imagePath,
+      link_url: String(formData.get("link_url") || "").trim(),
+      visible: formData.get("visible") === "on",
+      sort_order: Number(formData.get("sort_order") || 0),
+    },
+    id ? null : siteId,
+  );
 
   const { error } = id
     ? await supabase.from("portfolio_product_cards").update(payload).eq("id", id)
@@ -529,7 +739,7 @@ export async function saveProductCardAction(formData: FormData) {
 }
 
 export async function removeProductCardImageAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
   if (!id) return { error: "Product card id is required." };
@@ -555,7 +765,7 @@ export async function removeProductCardImageAction(formData: FormData) {
 }
 
 export async function deleteProductCardAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
   const { error } = await supabase.from("portfolio_product_cards").delete().eq("id", id);
@@ -566,14 +776,17 @@ export async function deleteProductCardAction(formData: FormData) {
 }
 
 export async function saveProductFeatureAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
-  const payload = {
-    title: String(formData.get("title") || "").trim() || "Untitled",
-    description: String(formData.get("description") || ""),
-    visible: formData.get("visible") === "on",
-    sort_order: Number(formData.get("sort_order") || 0),
-  };
+  const payload = withSite(
+    {
+      title: String(formData.get("title") || "").trim() || "Untitled",
+      description: String(formData.get("description") || ""),
+      visible: formData.get("visible") === "on",
+      sort_order: Number(formData.get("sort_order") || 0),
+    },
+    id ? null : siteId,
+  );
   const { error } = id
     ? await supabase.from("portfolio_product_features").update(payload).eq("id", id)
     : await supabase.from("portfolio_product_features").insert(payload);
@@ -583,7 +796,7 @@ export async function saveProductFeatureAction(formData: FormData) {
 }
 
 export async function deleteProductFeatureAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const { error } = await supabase
     .from("portfolio_product_features")
     .delete()
@@ -594,7 +807,7 @@ export async function deleteProductFeatureAction(formData: FormData) {
 }
 
 export async function moveRowAction(formData: FormData) {
-  const supabase = await adminClient();
+  const { supabase } = await adminClient();
   const table = String(formData.get("table") || "");
   const allowed = [
     "portfolio_gallery",

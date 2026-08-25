@@ -25,8 +25,10 @@ function isNavItemActive(
 
 export function SiteHeader({
   items = navigation,
+  wordmark = site.wordmark,
 }: {
   items?: readonly { label: string; href: string }[];
+  wordmark?: string;
 }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
@@ -129,7 +131,7 @@ export function SiteHeader({
             href={isHome ? "#top" : "/"}
             className="font-mono text-[11px] tracking-[0.22em] text-text"
           >
-            {site.wordmark}
+            {wordmark}
           </a>
 
           <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">

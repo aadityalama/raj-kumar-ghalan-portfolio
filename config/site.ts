@@ -1,62 +1,42 @@
 /**
- * Central content + SEO configuration for Raj Kumar Ghalan.
- * Update placeholders here instead of scattering facts across components.
- *
- * PLACEHOLDER fields are intentionally null or empty until a real value exists.
- * Do not invent emails, social profiles, URLs, dates, or metrics.
+ * Neutral product defaults for Portfolio CMS.
+ * Customer-facing sites should load content from Supabase CMS.
+ * These values are demo placeholders only — never invent credentials.
  */
 
-const NEPSE_FACEBOOK_URL =
-  "https://www.facebook.com/share/14ufXJ5qRDG/?mibextid=wwXIfr";
-const FIRE_NEPAL_YOUTUBE_URL = "https://www.youtube.com/@Firenepal853";
+export const PRODUCT_NAME = "Portfolio CMS";
 
 export const site = {
-  name: "Raj Kumar Ghalan",
-  wordmark: "RAJ KUMAR GHALAN",
-  shortName: "RKG",
-  positioning: "Market Analyst · Technical Analyst · Digital Builder · Creator",
-  headline: "Building ideas into real-world digital products.",
-  location: "South Korea",
-  origin: "Nepal",
-  experienceYears: "14+",
-  experienceLabel: "14+ Years of Professional Experience",
-  title: "Raj Kumar Ghalan — Market Analyst, Technical Analyst, Digital Builder, Creator",
+  name: "Your Name",
+  wordmark: "YOUR NAME",
+  shortName: "YN",
+  positioning: "Creative Professional",
+  headline: "Building meaningful digital experiences.",
+  location: "",
+  origin: "",
+  experienceYears: "",
+  experienceLabel: "Professional Experience",
+  title: "Your Name — Creative Professional",
   description:
-    "Personal website of Raj Kumar Ghalan — a NEPSE market analyst, technical analyst, investor, trader, and digital builder based in South Korea.",
+    "A premium portfolio website for showcasing projects, experience, and creative work.",
   keywords: [
-    "Raj Kumar Ghalan",
-    "NEPSE",
-    "market analyst",
-    "technical analysis",
-    "Nepal Stock Exchange",
-    "digital builder",
-    "FIRE Nepal",
-    "financial technology",
-    "personal finance",
-    "South Korea",
-    "Nepal",
+    "portfolio",
+    "creative professional",
     "digital products",
-    "content creator",
+    "projects",
+    "experience",
   ],
-  /**
-   * PLACEHOLDER: set NEXT_PUBLIC_SITE_URL in production.
-   * Falls back to localhost so metadata/canonical still work in development.
-   */
   get url() {
     return (
       process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
       "http://localhost:3000"
     );
   },
-  email: "aadityalama853@gmail.com",
+  email: "",
   portrait: {
-    src: "/photos/portrait-hero.jpg",
-    alt: "Portrait of Raj Kumar Ghalan",
+    src: "",
+    alt: "Profile photo",
   },
-  /**
-   * PLACEHOLDER: add a resume PDF path (e.g. "/raj-kumar-ghalan-resume.pdf")
-   * after the file is placed in /public.
-   */
   resumeUrl: "",
   locale: "en_US",
 } as const;
@@ -64,36 +44,38 @@ export const site = {
 export const socials = {
   youtube: {
     label: "YouTube",
-    href: FIRE_NEPAL_YOUTUBE_URL,
-    note: "FIRE Nepal channel",
+    href: "",
+    note: "YouTube channel",
   },
   facebook: {
     label: "Facebook",
-    href: "https://www.facebook.com/share/1AuV3FkbDN/?mibextid=wwXIfr",
-    note: "FIRE Nepal",
-  },
-  facebookNepse: {
-    label: "Facebook",
-    href: NEPSE_FACEBOOK_URL,
-    note: "NEPSE Market Analyst",
+    href: "",
+    note: "Facebook",
   },
   instagram: {
     label: "Instagram",
-    href: "https://www.instagram.com/firenepal",
-    note: "FIRE Nepal",
+    href: "",
+    note: "Instagram",
   },
   tiktok: {
     label: "TikTok",
-    href: "https://www.tiktok.com/@firenepal4",
-    note: "FIRE Nepal",
+    href: "",
+    note: "TikTok",
   },
-  /**
-   * PLACEHOLDER: personal LinkedIn profile URL.
-   */
   linkedin: {
     label: "LinkedIn",
     href: "",
-    note: "PLACEHOLDER — add personal LinkedIn URL",
+    note: "LinkedIn",
+  },
+  github: {
+    label: "GitHub",
+    href: "",
+    note: "GitHub",
+  },
+  email: {
+    label: "Email",
+    href: "",
+    note: "Direct email",
   },
 } as const;
 
@@ -102,7 +84,6 @@ export const navigation = [
   { label: "Experience", href: "#experience" },
   { label: "Projects", href: "#projects" },
   { label: "Skills", href: "#skills" },
-  { label: "Content", href: "#content" },
   { label: "Photo Gallery", href: "/gallery" },
   { label: "Contact", href: "#contact" },
 ] as const;
@@ -110,322 +91,147 @@ export const navigation = [
 export const gallery = [
   {
     src: "/photos/portrait-hero.jpg",
-    alt: "Portrait of Raj Kumar Ghalan",
+    alt: "Demo profile portrait placeholder",
     caption: "Portrait",
-    kind: "Personal",
-  },
-  {
-    src: "/photos/life-01-building.jpg",
-    alt: "Laptop open to FIRE Nepal during product work",
-    caption: "Building FIRE Nepal",
-    kind: "Work",
-  },
-  {
-    src: "/photos/life-02-dashboard.jpg",
-    alt: "FIRE Nepal dashboard on a laptop",
-    caption: "Product work",
-    kind: "Work",
-  },
-  {
-    src: "/photos/life-03-portfolio.jpg",
-    alt: "FIRE Nepal portfolio workspace on a laptop",
-    caption: "Workspace",
-    kind: "Work",
-  },
-  {
-    src: "/projects/fire-nepal-home.jpg",
-    alt: "FIRE Nepal homepage",
-    caption: "FIRE Nepal",
-    kind: "Project",
-  },
-  {
-    src: "/projects/fire-nepal-cashflow.jpg",
-    alt: "FIRE Nepal cashflow dashboard",
-    caption: "Cashflow",
-    kind: "Project",
-  },
-  {
-    src: "/projects/fire-nepal-tools.jpg",
-    alt: "FIRE Nepal tools on mobile",
-    caption: "Tools",
-    kind: "Project",
-  },
-  {
-    src: "/projects/uvely-glow-home.jpg",
-    alt: "Uvely Glow storefront",
-    caption: "Uvely Glow",
-    kind: "Project",
+    kind: "Professional",
   },
 ] as const;
 
 export const experience = {
-  company: "KP Electric",
-  role: "Cast Resin Transformer / Transformer Machine Operator / Transformer Technician",
-  tenure: "14+ years",
-  logo: "/experience/kp-electric.png",
-  /**
-   * Workplace photos were not among the supplied image set.
-   * Add files under public/experience and list them here.
-   */
+  company: "Example Studio",
+  role: "Creative Professional",
+  tenure: "",
+  logo: "",
   photos: [] as readonly { src: string; alt: string; caption: string }[],
   summary:
-    "Hands-on technical work in transformer manufacturing — precision, process discipline, and responsibility for real industrial equipment.",
+    "Add your professional experience here — company, role, and a short summary of your work.",
   stages: [
     {
-      label: "2020s",
-      title: "Professional expertise",
-      body: "Deepening technical craft inside a manufacturing environment where quality and consistency matter.",
+      label: "Start",
+      title: "Foundation",
+      body: "Describe how your career began.",
     },
     {
       label: "Craft",
-      title: "Technical experience",
-      body: "Years of working with transformer systems, machines, and production standards.",
+      title: "Growing expertise",
+      body: "Highlight the skills and disciplines you developed.",
     },
     {
       label: "Shift",
-      title: "Digital transformation",
-      body: "A growing interest in technology, product thinking, and building software that people can actually use.",
+      title: "New direction",
+      body: "Share a meaningful transition in your work.",
     },
     {
       label: "Now",
-      title: "Product building",
-      body: "Turning that curiosity into real digital products, NEPSE market analysis, and financial content.",
+      title: "Current focus",
+      body: "Explain what you are building or creating today.",
     },
   ],
 } as const;
 
 export const projects = {
-  fireNepal: {
+  featured: {
     number: "01",
-    name: "FIRE Nepal",
-    category: "FinTech · Personal Finance · AI · SaaS",
-    href: "https://www.firenepal.com",
+    name: "Featured Project",
+    category: "Product · Design · Technology",
+    href: "",
     description:
-      "A financial life platform designed to help Nepalis track wealth, understand their finances, plan for retirement, and work toward Financial Independence and Early Retirement.",
-    features: [
-      "FIRE Calculator",
-      "Net Worth Tracking",
-      "Portfolio Analytics",
-      "Savings Tracker",
-      "Expense Tracking",
-      "Financial Intelligence",
-      "AI Financial Guidance",
-      "Retirement Analysis",
-      "Multi-currency support",
-      "Nepal-focused financial tools",
-    ],
-    productAreas: [
-      "Dashboard",
-      "FIRE Calculator",
-      "Portfolio",
-      "Cashflow",
-      "Savings",
-      "FIRE Biz",
-      "FIRE AI",
-      "Retirement Analysis",
-    ],
-    technologies: [
-      "Next.js",
-      "TypeScript",
-      "Supabase",
-      "PostgreSQL",
-      "Vercel",
-      "AI integrations",
-    ],
-    image: "/projects/fire-nepal-cashflow.jpg",
-    visuals: [
-      {
-        src: "/projects/fire-nepal-home.jpg",
-        alt: "FIRE Nepal homepage",
-        caption: "Home",
-      },
-      {
-        src: "/projects/fire-nepal-cashflow.jpg",
-        alt: "FIRE Nepal cashflow dashboard",
-        caption: "Cashflow",
-      },
-      {
-        src: "/projects/fire-nepal-tools.jpg",
-        alt: "FIRE Nepal tools on mobile",
-        caption: "Tools",
-      },
-      {
-        src: "/projects/fire-nepal-return.jpg",
-        alt: "FIRE Nepal return planner",
-        caption: "Return planner",
-      },
-      {
-        src: "/projects/fire-nepal-banner.jpg",
-        alt: "FIRE Nepal brand banner",
-        caption: "Brand",
-      },
-    ],
+      "Showcase your signature project — what it is, who it helps, and why it matters.",
+    features: ["Feature one", "Feature two", "Feature three", "Feature four"],
+    productAreas: ["Overview", "Experience", "Tools", "Insights"],
+    technologies: ["Next.js", "TypeScript", "Supabase"],
+    image: "",
+    visuals: [] as readonly { src: string; alt: string; caption: string }[],
     accent: "emerald",
   },
-  uvelyGlow: {
+  secondary: {
     number: "02",
-    name: "Uvely Glow",
-    category: "E-commerce · Beauty Technology",
-    /**
-     * PLACEHOLDER: add a public production URL when the storefront is live.
-     */
+    name: "Secondary Project",
+    category: "Design · Development",
     href: "",
-    description:
-      "A premium Korean beauty e-commerce concept — Seoul-inspired storefront, product discovery, and a skincare quiz for matching routines.",
-    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
-    image: "/projects/uvely-glow-home.jpg",
-    accent: "rose",
-  },
-  nepDealz: {
-    number: "03",
-    name: "NepDealz",
-    category: "E-commerce · Digital Commerce",
-    /**
-     * PLACEHOLDER: add a public URL when the project is published.
-     */
-    href: "",
-    description:
-      "An e-commerce and digital commerce project exploring practical online business for real customers.",
-    technologies: ["Digital Commerce", "E-commerce"],
+    description: "A second project to demonstrate breadth of work.",
+    technologies: ["React", "TypeScript"],
     image: "",
-    accent: "amber",
+    accent: "rose",
   },
 } as const;
 
 export const skills = {
-  "Digital Product": [
-    "Product thinking",
-    "UI/UX",
-    "Responsive design",
-    "SaaS concepts",
-  ],
-  Technology: [
-    "Next.js",
-    "React",
-    "TypeScript",
-    "Tailwind CSS",
-    "Supabase",
-    "PostgreSQL",
-    "GitHub",
-    "Vercel",
-  ],
-  AI: [
-    "AI product integration",
-    "AI-assisted workflows",
-    "Financial AI concepts",
-    "AI-powered product experiences",
-  ],
-  Content: [
-    "Social media content",
-    "YouTube content",
-    "Financial education content",
-    "Digital storytelling",
-  ],
-  Markets: [
-    "NEPSE Market Analysis",
-    "Technical Analysis",
-    "Market Trend Analysis",
-    "Trading & Investment",
-    "Nepali Share Market Investor",
-    "Investor Education",
-    "Financial Content Creation",
-  ],
+  "Digital Product": ["Product thinking", "UI/UX", "Responsive design"],
+  Technology: ["Next.js", "React", "TypeScript", "Tailwind CSS"],
+  Content: ["Storytelling", "Visual communication"],
 } as const;
 
 export const market = {
-  eyebrow: "Market & Investment",
-  title: "Reading the Nepal market with discipline",
+  eyebrow: "Spotlight",
+  title: "Share a professional focus area",
   description:
-    "I analyze the Nepal Stock Exchange (NEPSE) with a focus on technical analysis, market trends, trading strategies, and investor education. Through my content and analysis, I share practical insights for Nepali investors and traders navigating the stock market.",
-  profile:
-    "I am a Nepali share market investor and NEPSE market analyst. My technical analysis Facebook page has 11K+ followers. I publish NEPSE technical analysis, follow Nepal share market trends, and actively invest and trade — educational work for investors and traders, not profit or return guarantees.",
+    "Use this section for a market profile, specialty, or any spotlight topic your audience cares about.",
+  profile: "Add a short profile that explains your focus and credibility.",
   facebook: {
-    label: "Facebook",
-    href: NEPSE_FACEBOOK_URL,
-    cta: "Open Facebook page",
+    label: "Learn more",
+    href: "",
+    cta: "Open profile",
   },
   stats: [
-    { value: "11K+", label: "Followers" },
-    { value: "231+", label: "Posts" },
+    { value: "—", label: "Metric" },
+    { value: "—", label: "Metric" },
   ],
-  capabilities: [
-    "NEPSE Market Analysis",
-    "Technical Analysis",
-    "Market Trend Analysis",
-    "Trading & Investment",
-    "Nepali Share Market Investor",
-    "Investor Education",
-    "Financial Content Creation",
-  ],
-  note: "Educational analysis and content for investors and traders — not licensed financial advice, and not a promise of profits or returns.",
+  capabilities: ["Capability one", "Capability two", "Capability three"],
+  note: "Optional disclaimer or supporting note.",
 } as const;
 
 export const contentFocus = {
-  title: "NEPSE Technical Analysis",
-  body: "Market analysis, technical setups, trading ideas, Nepal share market trends, and educational content for Nepali investors and traders.",
-  href: NEPSE_FACEBOOK_URL,
+  title: "Content focus",
+  body: "Describe the themes you create content around.",
+  href: "",
   stats: [
-    { value: "11K+", label: "Followers" },
-    { value: "231+", label: "Posts" },
+    { value: "—", label: "Metric" },
+    { value: "—", label: "Metric" },
   ],
-  context: "NEPSE / technical analysis Facebook page",
+  context: "Content profile",
 } as const;
 
 export const youtubeFocus = {
-  title: "FIRE Nepal on YouTube",
-  body: "Financial education, personal finance, and stories around the FIRE Nepal product — on the official FIRE Nepal channel.",
-  href: FIRE_NEPAL_YOUTUBE_URL,
-  cta: "Open YouTube channel",
-  context: "FIRE Nepal YouTube",
+  title: "Video content",
+  body: "Link your channel and describe what viewers will find.",
+  href: "",
+  cta: "Open channel",
+  context: "Video channel",
 } as const;
 
 export const contentThemes = [
-  "NEPSE Technical Analysis",
-  "Market analysis",
-  "Trading ideas",
-  "Financial education",
-  "Personal finance",
-  "Nepal",
-  "Korea",
-  "Career and life",
-  "Digital products",
+  "Product",
+  "Design",
+  "Technology",
+  "Career",
+  "Education",
 ] as const;
 
 export const careerJourney = [
   {
     stage: "01",
-    title: "Nepal",
-    body: "Roots, values, and the beginning of a long professional path.",
+    title: "Beginnings",
+    body: "Where your story started.",
   },
   {
     stage: "02",
-    title: "South Korea",
-    body: "Living and working abroad — building a career far from home.",
+    title: "Experience",
+    body: "Professional growth and craft.",
   },
   {
     stage: "03",
-    title: "Professional Experience",
-    body: "14+ years of technical work, discipline, and industrial craft.",
+    title: "Building",
+    body: "Turning ideas into real work.",
   },
   {
     stage: "04",
-    title: "Digital Builder",
-    body: "Learning modern product tools and turning ideas into software.",
-  },
-  {
-    stage: "05",
-    title: "Market Analyst",
-    body: "Technical analysis, NEPSE market trends, and investor education for Nepali traders.",
-  },
-  {
-    stage: "06",
-    title: "Product Creator",
-    body: "Shipping platforms and stories that help people make better decisions.",
+    title: "Today",
+    body: "What you are creating now.",
   },
 ] as const;
 
-export const philosophy =
-  "Build things that make life simpler, smarter, and more independent.";
+export const philosophy = "Build work that is clear, useful, and lasting.";
 
 export function resolvedSocials() {
   return Object.values(socials).filter((item) => Boolean(item.href));
