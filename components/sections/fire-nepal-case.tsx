@@ -3,6 +3,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { Reveal, Stagger, StaggerItem } from "@/components/ui/reveal";
 import { CaseVisuals } from "@/components/sections/case-visuals";
+import type { ProductCardRow, ProductFeatureRow } from "@/lib/cms/types";
 
 const chapters = [
   {
@@ -19,7 +20,17 @@ const chapters = [
   },
 ] as const;
 
-export function FireNepalCase({ liveUrl }: { liveUrl?: string }) {
+export function FireNepalCase({
+  liveUrl,
+  sectionTitle = "The Product",
+  productCards = [],
+  productFeatures = [],
+}: {
+  liveUrl?: string;
+  sectionTitle?: string;
+  productCards?: ProductCardRow[];
+  productFeatures?: ProductFeatureRow[];
+}) {
   const project = { ...projects.fireNepal, href: liveUrl || projects.fireNepal.href };
 
   return (
@@ -54,21 +65,26 @@ export function FireNepalCase({ liveUrl }: { liveUrl?: string }) {
         </Stagger>
 
         <Reveal className="mt-14">
-          <h3 className="text-sm uppercase tracking-[0.18em] text-subtle">The Product</h3>
-          <CaseVisuals />
-          <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {project.productAreas.map((area, index) => (
-              <li
-                key={area}
-                className="rounded-[1.1rem] border border-border bg-bg-card px-4 py-5"
-              >
-                <span className="font-mono text-[10px] text-accent">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <p className="mt-2 text-sm tracking-[-0.02em]">{area}</p>
-              </li>
-            ))}
-          </ul>
+          <h3 className="text-sm uppercase tracking-[0.18em] text-subtle">{sectionTitle}</h3>
+          <CaseVisuals cards={productCards} />
+          {productFeatures.length ? (
+            <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {productFeatures.map((area, index) => (
+                <li
+                  key={area.id || `${area.title}-${index}`}
+                  className="rounded-[1.1rem] border border-border bg-bg-card px-4 py-5"
+                >
+                  <span className="font-mono text-[10px] text-accent">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <p className="mt-2 text-sm tracking-[-0.02em]">{area.title}</p>
+                  {area.description ? (
+                    <p className="mt-2 text-xs leading-relaxed text-muted">{area.description}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </Reveal>
 
         <div className="mt-14 grid gap-8 border-t border-border pt-10 lg:grid-cols-2">

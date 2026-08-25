@@ -242,7 +242,7 @@ export async function deleteSocialAction(formData: FormData) {
   return { ok: true };
 }
 
-async function uploadPublicImage(kind: "gallery" | "projects" | "profile" | "social", file: File) {
+async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "profile" | "social", file: File) {
   const invalid = validateImageFile(file);
   if (invalid) throw new Error(invalid);
   const supabase = await createSupabaseServerClient();
@@ -480,6 +480,119 @@ export async function deleteSkillAction(formData: FormData) {
   return { ok: true };
 }
 
+export async function saveProductSettingsAction(formData: FormData) {
+  const supabase = await adminClient();
+  const payload = {
+    id: 1,
+    section_title: String(formData.get("section_title") || "The Product").trim() || "The Product",
+  };
+  const { error } = await supabase.from("portfolio_product_settings").upsert(payload);
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function saveProductCardAction(formData: FormData) {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") || "");
+  const file = formData.get("file");
+  let imageUrl = String(formData.get("image_url") || "");
+  let imagePath = String(formData.get("image_path") || "") || null;
+
+  if (file instanceof File && file.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("product", file);
+      if (imagePath) await supabase.storage.from(MEDIA_BUCKET).remove([imagePath]);
+      imageUrl = uploaded.url;
+      imagePath = uploaded.path;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Image upload failed." };
+    }
+  }
+
+  const payload = {
+    title: String(formData.get("title") || "").trim() || "Untitled",
+    description: String(formData.get("description") || ""),
+    image_url: imageUrl,
+    image_path: imagePath,
+    link_url: String(formData.get("link_url") || "").trim(),
+    visible: formData.get("visible") === "on",
+    sort_order: Number(formData.get("sort_order") || 0),
+  };
+
+  const { error } = id
+    ? await supabase.from("portfolio_product_cards").update(payload).eq("id", id)
+    : await supabase.from("portfolio_product_cards").insert(payload);
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function removeProductCardImageAction(formData: FormData) {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") || "");
+  const path = String(formData.get("image_path") || "");
+  if (!id) return { error: "Product card id is required." };
+
+  const { error } = await supabase
+    .from("portfolio_product_cards")
+    .update({ image_url: "", image_path: null })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  if (path) {
+    const { error: storageError } = await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+    if (storageError) {
+      refreshPublic();
+      return {
+        error: `Image was cleared, but the storage file could not be deleted: ${storageError.message}`,
+      };
+    }
+  }
+
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function deleteProductCardAction(formData: FormData) {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") || "");
+  const path = String(formData.get("image_path") || "");
+  const { error } = await supabase.from("portfolio_product_cards").delete().eq("id", id);
+  if (error) return { error: error.message };
+  if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function saveProductFeatureAction(formData: FormData) {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") || "");
+  const payload = {
+    title: String(formData.get("title") || "").trim() || "Untitled",
+    description: String(formData.get("description") || ""),
+    visible: formData.get("visible") === "on",
+    sort_order: Number(formData.get("sort_order") || 0),
+  };
+  const { error } = id
+    ? await supabase.from("portfolio_product_features").update(payload).eq("id", id)
+    : await supabase.from("portfolio_product_features").insert(payload);
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function deleteProductFeatureAction(formData: FormData) {
+  const supabase = await adminClient();
+  const { error } = await supabase
+    .from("portfolio_product_features")
+    .delete()
+    .eq("id", String(formData.get("id") || ""));
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
 export async function moveRowAction(formData: FormData) {
   const supabase = await adminClient();
   const table = String(formData.get("table") || "");
@@ -490,6 +603,8 @@ export async function moveRowAction(formData: FormData) {
     "portfolio_skills",
     "portfolio_sections",
     "portfolio_social_links",
+    "portfolio_product_cards",
+    "portfolio_product_features",
   ];
   if (!allowed.includes(table)) return { error: "Invalid table." };
   const id = String(formData.get("id") || "");

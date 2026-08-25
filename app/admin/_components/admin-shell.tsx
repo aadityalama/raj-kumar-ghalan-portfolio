@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/market", label: "NEPSE Profile" },
   { href: "/admin/gallery", label: "Gallery" },
   { href: "/admin/projects", label: "Projects" },
+  { href: "/admin/product", label: "Product" },
   { href: "/admin/experience", label: "Experience" },
   { href: "/admin/skills", label: "Skills" },
   { href: "/admin/social", label: "Social" },

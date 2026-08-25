@@ -136,6 +136,34 @@ export type SeoRow = {
   updated_at?: string;
 };
 
+export type ProductSettingsRow = {
+  section_title: string;
+  updated_at?: string;
+};
+
+export type ProductCardRow = {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  image_path: string | null;
+  link_url: string;
+  visible: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProductFeatureRow = {
+  id: string;
+  title: string;
+  description: string;
+  visible: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type PublicPortfolio = {
   settings: SettingsRow;
   sections: SectionRow[];
@@ -146,5 +174,8 @@ export type PublicPortfolio = {
   socials: SocialRow[];
   contact: ContactRow;
   seo: SeoRow;
+  productSettings: ProductSettingsRow;
+  productCards: ProductCardRow[];
+  productFeatures: ProductFeatureRow[];
   source: "cms" | "fallback";
 };

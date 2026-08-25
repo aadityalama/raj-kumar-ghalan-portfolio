@@ -19,11 +19,13 @@ export function validateImageFile(file: File) {
   return null;
 }
 
-export function mediaFolder(kind: "gallery" | "projects" | "profile" | "social") {
+export type MediaKind = "gallery" | "projects" | "product" | "profile" | "social";
+
+export function mediaFolder(kind: MediaKind) {
   return kind;
 }
 
-export function storageObjectPath(kind: "gallery" | "projects" | "profile" | "social", file: File) {
+export function storageObjectPath(kind: MediaKind, file: File) {
   const ext = EXTENSIONS[file.type] || "jpg";
   return `${mediaFolder(kind)}/${crypto.randomUUID()}.${ext}`;
 }
