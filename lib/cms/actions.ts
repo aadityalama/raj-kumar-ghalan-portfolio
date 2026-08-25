@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSiteEditor } from "@/lib/cms/admin-auth";
 import { sanitizeAccentColor } from "@/lib/cms/branding";
-import { MEDIA_BUCKET, profileStoragePathFromUrl, storageObjectPath, validateImageFile } from "@/lib/cms/media";
+import { MEDIA_BUCKET, profileStoragePathFromUrl, storageObjectPath, validateImageFile, type MediaKind } from "@/lib/cms/media";
 import {
   assertBrandColumns,
   getPortfolioSettingsColumns,
@@ -137,7 +137,33 @@ const SETTINGS_FIELDS = [
   "market_followers",
   "market_posts",
   "market_facebook_url",
+  "hero_primary_cta_text",
+  "hero_primary_cta_href",
+  "hero_secondary_cta_text",
+  "hero_secondary_cta_href",
+  "gallery_page_eyebrow",
+  "gallery_page_title",
+  "gallery_page_description",
+  "gallery_cta_label",
+  "gallery_cta_href",
+  "career_timeline_eyebrow",
+  "career_timeline_title",
+  "market_eyebrow",
+  "market_followers_label",
+  "market_posts_label",
+  "market_facebook_cta",
+  "content_eyebrow",
+  "content_youtube_context",
+  "content_youtube_cta",
+  "content_themes",
+  "market_capabilities",
+  "other_projects_eyebrow",
+  "other_projects_title",
+  "about_eyebrow",
+  "about_known_experience_heading",
 ] as const;
+
+const SETTINGS_ARRAY_FIELDS = ["content_themes", "market_capabilities"] as const;
 
 const BRAND_FIELDS = [
   "website_name",
@@ -189,9 +215,20 @@ async function upsertSettingsRow(
 export async function saveSettingsAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const { data: current } = await readSettingsRow(supabase, siteId);
-  const payload: Record<string, string | number | boolean> = {};
+  const payload: Record<string, string | number | boolean | string[]> = {};
 
   for (const key of SETTINGS_FIELDS) {
+    if (SETTINGS_ARRAY_FIELDS.includes(key as (typeof SETTINGS_ARRAY_FIELDS)[number])) {
+      if (formData.has(key)) {
+        payload[key] = String(formData.get(key) || "")
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      } else if (current && Array.isArray(current[key])) {
+        payload[key] = current[key] as string[];
+      }
+      continue;
+    }
     if (formData.has(key)) payload[key] = String(formData.get(key) || "");
     else if (current && current[key] != null) payload[key] = current[key] as string;
   }
@@ -493,6 +530,7 @@ export async function saveSectionAction(formData: FormData) {
       href: String(formData.get("href") || ""),
       title: String(formData.get("title") || ""),
       description: String(formData.get("description") || ""),
+      eyebrow: String(formData.get("eyebrow") || ""),
       visible: formData.get("visible") === "on",
       sort_order: Number(formData.get("sort_order") || 0),
     });
@@ -534,7 +572,7 @@ export async function deleteSocialAction(formData: FormData) {
   return { ok: true };
 }
 
-async function uploadPublicImage(kind: "gallery" | "projects" | "product" | "profile" | "social" | "brand", file: File) {
+async function uploadPublicImage(kind: MediaKind, file: File) {
   const invalid = validateImageFile(file);
   if (invalid) throw new Error(invalid);
   const supabase = await createSupabaseServerClient();
@@ -700,9 +738,10 @@ export async function deleteProjectAction(formData: FormData) {
 export async function saveExperienceAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
-  const payload = {
+  const payload: Record<string, unknown> = {
     company: String(formData.get("company") || ""),
     position: String(formData.get("position") || ""),
+    location: String(formData.get("location") || ""),
     start_year: String(formData.get("start_year") || ""),
     end_year: String(formData.get("end_year") || ""),
     description: String(formData.get("description") || ""),
@@ -711,8 +750,21 @@ export async function saveExperienceAction(formData: FormData) {
       .map((item) => item.trim())
       .filter(Boolean),
     featured: formData.get("featured") === "on",
+    visible: formData.has("visible") ? formData.get("visible") === "on" : true,
     sort_order: Number(formData.get("sort_order") || 0),
   };
+
+  const logoFile = formData.get("logo_file");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("experience", logoFile);
+      payload.logo_url = uploaded.url;
+      payload.logo_path = uploaded.path;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Logo upload failed." };
+    }
+  }
+
   const { error } = id
     ? await updateOwnedRow(supabase, "portfolio_experience", siteId, id, payload)
     : await supabase.from("portfolio_experience").insert(withSite(payload, siteId));
@@ -944,12 +996,101 @@ export async function moveRowAction(formData: FormData) {
     "portfolio_social_links",
     "portfolio_product_cards",
     "portfolio_product_features",
+    "portfolio_journey_stages",
+    "portfolio_experience_photos",
   ];
   if (!allowed.includes(table)) return { error: "Invalid table." };
   const id = String(formData.get("id") || "");
   const sortOrder = Number(formData.get("sort_order") || 0);
   const { error } = await updateOwnedRow(supabase, table, siteId, id, { sort_order: sortOrder });
   if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function saveJourneyStageAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const id = String(formData.get("id") || "");
+  const kind = String(formData.get("kind") || "career");
+  if (kind !== "career" && kind !== "experience") return { error: "Invalid stage kind." };
+
+  const payload = {
+    kind,
+    stage_label: String(formData.get("stage_label") || ""),
+    title: String(formData.get("title") || ""),
+    body: String(formData.get("body") || ""),
+    visible: formData.get("visible") !== "off",
+    sort_order: Number(formData.get("sort_order") || 0),
+  };
+
+  const { error } = id
+    ? await updateOwnedRow(supabase, "portfolio_journey_stages", siteId, id, payload)
+    : await supabase.from("portfolio_journey_stages").insert(withSite(payload, siteId));
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function deleteJourneyStageAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_journey_stages",
+    siteId,
+    String(formData.get("id") || ""),
+  );
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function saveExperiencePhotoAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const id = String(formData.get("id") || "");
+  const payload: Record<string, unknown> = {
+    alt: String(formData.get("alt") || ""),
+    caption: String(formData.get("caption") || ""),
+    visible: formData.get("visible") !== "off",
+    sort_order: Number(formData.get("sort_order") || 0),
+  };
+
+  const photoFile = formData.get("photo_file");
+  if (photoFile instanceof File && photoFile.size > 0) {
+    try {
+      const uploaded = await uploadPublicImage("experience", photoFile);
+      payload.image_url = uploaded.url;
+      payload.image_path = uploaded.path;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Photo upload failed." };
+    }
+  } else if (formData.has("image_url")) {
+    payload.image_url = String(formData.get("image_url") || "");
+  }
+
+  if (!id && !payload.image_url) {
+    return { error: "Photo file is required for new uploads." };
+  }
+
+  const { error } = id
+    ? await updateOwnedRow(supabase, "portfolio_experience_photos", siteId, id, payload)
+    : await supabase.from("portfolio_experience_photos").insert(withSite(payload, siteId));
+
+  if (error) return { error: error.message };
+  refreshPublic();
+  return { ok: true };
+}
+
+export async function deleteExperiencePhotoAction(formData: FormData) {
+  const { supabase, siteId } = await adminClient();
+  const path = String(formData.get("image_path") || "");
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_experience_photos",
+    siteId,
+    String(formData.get("id") || ""),
+  );
+  if (error) return { error: error.message };
+  if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
   refreshPublic();
   return { ok: true };
 }

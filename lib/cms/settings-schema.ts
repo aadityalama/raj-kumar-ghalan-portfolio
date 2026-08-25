@@ -30,6 +30,34 @@ export const CORE_SETTINGS_COLUMNS = [
   "updated_at",
 ] as const;
 
+/** Full CMS coverage columns added in 010_full_cms_coverage.sql */
+export const CMS_EXTENSION_COLUMNS = [
+  "hero_primary_cta_text",
+  "hero_primary_cta_href",
+  "hero_secondary_cta_text",
+  "hero_secondary_cta_href",
+  "gallery_page_eyebrow",
+  "gallery_page_title",
+  "gallery_page_description",
+  "gallery_cta_label",
+  "gallery_cta_href",
+  "career_timeline_eyebrow",
+  "career_timeline_title",
+  "market_eyebrow",
+  "market_followers_label",
+  "market_posts_label",
+  "market_facebook_cta",
+  "content_eyebrow",
+  "content_youtube_context",
+  "content_youtube_cta",
+  "content_themes",
+  "market_capabilities",
+  "other_projects_eyebrow",
+  "other_projects_title",
+  "about_eyebrow",
+  "about_known_experience_heading",
+] as const;
+
 /** Branding columns added in 007/008 for Portfolio CMS. */
 export const BRAND_SETTINGS_COLUMNS = [
   "website_name",
@@ -47,7 +75,8 @@ export const BRAND_SETTINGS_COLUMNS = [
 
 export type SettingsColumn =
   | (typeof CORE_SETTINGS_COLUMNS)[number]
-  | (typeof BRAND_SETTINGS_COLUMNS)[number];
+  | (typeof BRAND_SETTINGS_COLUMNS)[number]
+  | (typeof CMS_EXTENSION_COLUMNS)[number];
 
 const MIGRATION_HINT =
   "Database is missing branding columns. Apply supabase/migrations/008_portfolio_settings_branding.sql in the Supabase SQL editor, then reload the API schema (NOTIFY pgrst, 'reload schema';).";
@@ -85,6 +114,15 @@ export const getPortfolioSettingsColumns = cache(async (): Promise<Set<string>> 
     // Probe site_id separately so branding can work before multi-tenant migration.
     const siteProbe = await supabase.from("portfolio_settings").select("site_id").limit(1);
     if (!siteProbe.error) columns.add("site_id");
+
+    const cmsProbe = await supabase
+      .from("portfolio_settings")
+      .select("hero_primary_cta_text,content_themes,market_capabilities")
+      .limit(1);
+    if (!cmsProbe.error) {
+      for (const column of CMS_EXTENSION_COLUMNS) columns.add(column);
+    }
+
     return columns;
   }
 

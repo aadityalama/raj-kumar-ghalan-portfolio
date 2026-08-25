@@ -1,9 +1,16 @@
-import { site } from "@/config/site";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import type { SettingsRow } from "@/lib/cms/types";
 
-export function About({ settings }: { settings: SettingsRow }) {
+export function About({
+  settings,
+  eyebrow = "01 / About",
+  knownExperienceHeading = "Known experience",
+}: {
+  settings: SettingsRow;
+  eyebrow?: string;
+  knownExperienceHeading?: string;
+}) {
   const titleLines = settings.about_title.split("\n").filter(Boolean);
 
   return (
@@ -13,7 +20,7 @@ export function About({ settings }: { settings: SettingsRow }) {
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-20">
           <Reveal>
             <p className="mb-5 font-mono text-[11px] uppercase tracking-[0.28em] text-accent">
-              01 / About
+              {settings.about_eyebrow || eyebrow}
             </p>
             <h2 className="display text-[clamp(2.4rem,5vw,4.4rem)] leading-[0.98] tracking-[-0.035em]">
               {titleLines.map((line, index) => (
@@ -33,10 +40,10 @@ export function About({ settings }: { settings: SettingsRow }) {
             </p>
             <div className="mt-10 border-t border-border pt-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
-                Known experience
+                {settings.about_known_experience_heading || knownExperienceHeading}
               </p>
               <p className="mt-2 text-3xl tracking-[-0.04em]">
-                {settings.about_experience_label || site.experienceLabel}
+                {settings.about_experience_label}
               </p>
             </div>
           </Reveal>

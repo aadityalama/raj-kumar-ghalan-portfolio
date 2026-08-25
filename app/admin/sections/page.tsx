@@ -9,10 +9,9 @@ export default async function AdminSectionsPage() {
 
   return (
     <div>
-      <h1 className="text-4xl tracking-[-0.04em]">Homepage sections</h1>
+      <h1 className="text-4xl tracking-[-0.04em]">Navigation</h1>
       <p className="mt-3 text-sm text-muted">
-        Enable or disable sections, change their order, and edit labels or short descriptions. Lower
-        order numbers appear first.
+        Enable or disable sections, change their order, and edit nav labels, eyebrows, titles, and descriptions.
       </p>
       <div className="mt-8 grid gap-4">
         {sections
@@ -34,6 +33,10 @@ export default async function AdminSectionsPage() {
                 <label className="grid gap-2 text-sm">
                   Section title
                   <input className="admin-input" name="title" defaultValue={section.title || ""} />
+                </label>
+                <label className="grid gap-2 text-sm">
+                  Eyebrow
+                  <input className="admin-input" name="eyebrow" defaultValue={section.eyebrow || ""} />
                 </label>
                 <label className="grid gap-2 text-sm">
                   Order

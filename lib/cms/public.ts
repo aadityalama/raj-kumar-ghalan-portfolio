@@ -1,11 +1,20 @@
 import { cache } from "react";
 import { brandDisplayName } from "@/lib/cms/branding";
 import { defaultGallery, fallbackPortfolio } from "@/lib/cms/defaults";
+import {
+  enrichOwnerSettings,
+  isOwnerSite,
+  ownerCareerStages,
+  ownerExperiencePhotos,
+  ownerExperienceStages,
+  ownerPortfolio,
+} from "@/lib/cms/owner-defaults";
 import { resolvePublicSite } from "@/lib/cms/site";
 import type {
   ContactRow,
+  ExperiencePhotoRow,
   ExperienceRow,
-  GalleryRow,
+  JourneyStageRow,
   ProductCardRow,
   ProductFeatureRow,
   ProductSettingsRow,
@@ -25,12 +34,43 @@ function withSiteFilter(query: any, siteId: string) {
   return query.eq("site_id", siteId);
 }
 
-export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
-  if (!hasSupabaseEnv()) return defaultGallery();
+function ownerAwareFallback(site: PublicPortfolio["site"]): PublicPortfolio {
+  if (site?.is_owner_site) {
+    return { ...ownerPortfolio(), site };
+  }
+  return { ...fallbackPortfolio(), site: site ?? null };
+}
+
+function finalizePortfolio(
+  portfolio: PublicPortfolio,
+  site: PublicPortfolio["site"],
+): PublicPortfolio {
+  const next = { ...portfolio, site };
+  if (isOwnerSite(next)) {
+    next.settings = enrichOwnerSettings(next.settings);
+    if (!next.journeyStages.length) {
+      next.journeyStages = [...ownerCareerStages(), ...ownerExperienceStages()];
+    }
+    if (!next.experiencePhotos.length) {
+      next.experiencePhotos = ownerExperiencePhotos();
+    }
+  }
+  return next;
+}
+
+export const getPublicGallery = cache(async (): Promise<import("@/lib/cms/types").GalleryRow[]> => {
+  if (!hasSupabaseEnv()) {
+    const site = await resolvePublicSite();
+    if (site?.is_owner_site) return ownerPortfolio().gallery;
+    return defaultGallery();
+  }
 
   try {
     const site = await resolvePublicSite();
-    if (!site?.id) return defaultGallery();
+    if (!site?.id) {
+      if (site?.is_owner_site) return ownerPortfolio().gallery;
+      return defaultGallery();
+    }
 
     const supabase = await createSupabaseServerClient();
     const { data } = await withSiteFilter(
@@ -38,7 +78,8 @@ export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
       site.id,
     );
 
-    if (data && data.length > 0) return data as GalleryRow[];
+    if (data && data.length > 0) return data as import("@/lib/cms/types").GalleryRow[];
+    if (site.is_owner_site) return ownerPortfolio().gallery;
     return defaultGallery();
   } catch {
     return defaultGallery();
@@ -46,21 +87,16 @@ export const getPublicGallery = cache(async (): Promise<GalleryRow[]> => {
 });
 
 export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
-  const fallback = fallbackPortfolio();
+  const site = await resolvePublicSite();
+  const fallback = ownerAwareFallback(site);
+
   if (!hasSupabaseEnv()) {
-    return {
-      ...fallback,
-      gallery: [],
-    };
+    return finalizePortfolio({ ...fallback, gallery: [] }, site);
   }
 
   try {
-    const site = await resolvePublicSite();
     if (!site?.id) {
-      return {
-        ...fallback,
-        gallery: [],
-      };
+      return finalizePortfolio({ ...fallback, gallery: [] }, site);
     }
 
     const siteId = site.id;
@@ -78,6 +114,8 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
       productSettingsRes,
       productCardsRes,
       productFeaturesRes,
+      journeyStagesRes,
+      experiencePhotosRes,
     ] = await Promise.all([
       withSiteFilter(supabase.from("portfolio_settings").select("*"), siteId).maybeSingle(),
       withSiteFilter(
@@ -88,7 +126,10 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
         supabase.from("portfolio_projects").select("*").eq("published", true).order("sort_order"),
         siteId,
       ),
-      withSiteFilter(supabase.from("portfolio_experience").select("*").order("sort_order"), siteId),
+      withSiteFilter(
+        supabase.from("portfolio_experience").select("*").eq("visible", true).order("sort_order"),
+        siteId,
+      ),
       withSiteFilter(
         supabase.from("portfolio_skills").select("*").eq("visible", true).order("sort_order"),
         siteId,
@@ -112,49 +153,71 @@ export const getPublicPortfolio = cache(async (): Promise<PublicPortfolio> => {
           .order("sort_order"),
         siteId,
       ),
+      withSiteFilter(
+        supabase
+          .from("portfolio_journey_stages")
+          .select("*")
+          .eq("visible", true)
+          .order("sort_order"),
+        siteId,
+      ),
+      withSiteFilter(
+        supabase
+          .from("portfolio_experience_photos")
+          .select("*")
+          .eq("visible", true)
+          .order("sort_order"),
+        siteId,
+      ),
     ]);
 
     const hasCms = settingsRes.data || (sectionsRes.data && sectionsRes.data.length > 0);
 
     if (!hasCms) {
-      return {
-        ...fallback,
-        gallery: [],
-        site,
-      };
+      return finalizePortfolio({ ...fallback, gallery: [] }, site);
     }
 
     const productCardsError = Boolean(productCardsRes.error);
     const productFeaturesError = Boolean(productFeaturesRes.error);
+    const journeyStagesError = Boolean(journeyStagesRes.error);
+    const experiencePhotosError = Boolean(experiencePhotosRes.error);
 
-    return {
-      settings: (settingsRes.data as SettingsRow) || fallback.settings,
-      sections: ((sectionsRes.data as SectionRow[]) || fallback.sections).filter(
-        (item) => item.visible,
-      ),
-      gallery: [],
-      projects: (projectsRes.data as ProjectRow[]) || fallback.projects,
-      experience: (experienceRes.data as ExperienceRow[]) || fallback.experience,
-      skills: (skillsRes.data as SkillRow[]) || fallback.skills,
-      socials: ((socialsRes.data as SocialRow[]) || fallback.socials).filter((item) => item.href),
-      contact: (contactRes.data as ContactRow) || fallback.contact,
-      seo: (seoRes.data as SeoRow) || fallback.seo,
-      productSettings:
-        (productSettingsRes.data as ProductSettingsRow) || fallback.productSettings,
-      productCards: productCardsError
-        ? fallback.productCards
-        : ((productCardsRes.data as ProductCardRow[]) || fallback.productCards),
-      productFeatures: productFeaturesError
-        ? fallback.productFeatures
-        : ((productFeaturesRes.data as ProductFeatureRow[]) || fallback.productFeatures),
-      source: "cms",
+    const ownerFallback = site.is_owner_site ? ownerPortfolio() : fallback;
+
+    return finalizePortfolio(
+      {
+        settings: (settingsRes.data as SettingsRow) || ownerFallback.settings,
+        sections: ((sectionsRes.data as SectionRow[]) || ownerFallback.sections).filter(
+          (item) => item.visible,
+        ),
+        gallery: [],
+        projects: (projectsRes.data as ProjectRow[]) || ownerFallback.projects,
+        experience: (experienceRes.data as ExperienceRow[]) || ownerFallback.experience,
+        skills: (skillsRes.data as SkillRow[]) || ownerFallback.skills,
+        socials: ((socialsRes.data as SocialRow[]) || ownerFallback.socials).filter((item) => item.href),
+        contact: (contactRes.data as ContactRow) || ownerFallback.contact,
+        seo: (seoRes.data as SeoRow) || ownerFallback.seo,
+        productSettings:
+          (productSettingsRes.data as ProductSettingsRow) || ownerFallback.productSettings,
+        productCards: productCardsError
+          ? ownerFallback.productCards
+          : ((productCardsRes.data as ProductCardRow[]) || ownerFallback.productCards),
+        productFeatures: productFeaturesError
+          ? ownerFallback.productFeatures
+          : ((productFeaturesRes.data as ProductFeatureRow[]) || ownerFallback.productFeatures),
+        journeyStages: journeyStagesError
+          ? ownerFallback.journeyStages
+          : ((journeyStagesRes.data as JourneyStageRow[]) || ownerFallback.journeyStages),
+        experiencePhotos: experiencePhotosError
+          ? ownerFallback.experiencePhotos
+          : ((experiencePhotosRes.data as ExperiencePhotoRow[]) || ownerFallback.experiencePhotos),
+        source: "cms",
+        site,
+      },
       site,
-    };
+    );
   } catch {
-    return {
-      ...fallback,
-      gallery: [],
-    };
+    return finalizePortfolio({ ...fallback, gallery: [] }, site);
   }
 });
 
@@ -165,6 +228,29 @@ export function isSectionVisible(portfolio: PublicPortfolio, key: string) {
 
 export function sectionLabel(portfolio: PublicPortfolio, key: string, fallback: string) {
   return portfolio.sections.find((item) => item.section_key === key)?.label || fallback;
+}
+
+export function sectionByKey(portfolio: PublicPortfolio, key: string) {
+  return portfolio.sections.find((item) => item.section_key === key);
+}
+
+export function sectionMeta(
+  portfolio: PublicPortfolio,
+  key: string,
+  defaults: { eyebrow?: string; title?: string; description?: string } = {},
+) {
+  const section = sectionByKey(portfolio, key);
+  return {
+    eyebrow: section?.eyebrow || defaults.eyebrow || "",
+    title: section?.title || defaults.title || "",
+    description: section?.description || defaults.description || "",
+  };
+}
+
+export function journeyStagesByKind(portfolio: PublicPortfolio, kind: "career" | "experience") {
+  return portfolio.journeyStages
+    .filter((item) => item.kind === kind && item.visible)
+    .sort((a, b) => a.sort_order - b.sort_order);
 }
 
 function navHref(item: SectionRow) {

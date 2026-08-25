@@ -5,18 +5,25 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
 
-export function Skills({ groups }: { groups: Record<string, string[]> }) {
+export function Skills({
+  groups,
+  eyebrow = "06 / Capabilities",
+  title = "What I Work With",
+  description = "A working set of product, technology, markets, AI, and content skills — used to ship real things, not a logo wall.",
+}: {
+  groups: Record<string, string[]>;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+}) {
   const categories = Object.keys(groups);
   const [active, setActive] = useState(categories[0] || "");
   const reduce = useReducedMotion();
 
+  if (!categories.length) return null;
+
   return (
-    <Section
-      id="skills"
-      eyebrow="06 / Capabilities"
-      title="What I Work With"
-      description="A working set of product, technology, markets, AI, and content skills — used to ship real things, not a logo wall."
-    >
+    <Section id="skills" eyebrow={eyebrow} title={title} description={description}>
       <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14">
         <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0" role="tablist" aria-label="Skill categories">
           {categories.map((category) => (

@@ -5,11 +5,19 @@ import type { ProjectRow } from "@/lib/cms/types";
 
 const accents = ["rose", "amber", "emerald"] as const;
 
-export function OtherProjects({ items }: { items: ProjectRow[] }) {
+export function OtherProjects({
+  items,
+  eyebrow = "More work",
+  title = "Other projects",
+}: {
+  items: ProjectRow[];
+  eyebrow?: string;
+  title?: string;
+}) {
   if (!items.length) return null;
 
   return (
-    <Section id="other-projects" eyebrow="More work" title="Other projects">
+    <Section id="other-projects" eyebrow={eyebrow} title={title}>
       <Stagger className="grid gap-6 lg:grid-cols-2">
         {items.map((project, index) => (
           <StaggerItem key={project.id} className={index === 1 ? "lg:mt-16" : undefined}>

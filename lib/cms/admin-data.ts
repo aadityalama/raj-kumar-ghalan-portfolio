@@ -3,8 +3,10 @@ import { fallbackPortfolio } from "@/lib/cms/defaults";
 import { assertSiteId, resolveAdminSite } from "@/lib/cms/site";
 import type {
   ContactRow,
+  ExperiencePhotoRow,
   ExperienceRow,
   GalleryRow,
+  JourneyStageRow,
   ProductCardRow,
   ProductFeatureRow,
   ProductSettingsRow,
@@ -136,6 +138,8 @@ export async function getAdminCollections() {
     productSettings: fallback.productSettings,
     productCards: fallback.productCards,
     productFeatures: fallback.productFeatures,
+    journeyStages: fallback.journeyStages,
+    experiencePhotos: fallback.experiencePhotos,
     configured: false,
     siteId: null as string | null,
   };
@@ -157,6 +161,8 @@ export async function getAdminCollections() {
       productSettings,
       productCards,
       productFeatures,
+      journeyStages,
+      experiencePhotos,
     ] = await Promise.all([
       scoped(supabase.from("portfolio_settings").select("*"), siteId).maybeSingle(),
       scoped(supabase.from("portfolio_sections").select("*").order("sort_order"), siteId),
@@ -170,6 +176,8 @@ export async function getAdminCollections() {
       scoped(supabase.from("portfolio_product_settings").select("*"), siteId).maybeSingle(),
       scoped(supabase.from("portfolio_product_cards").select("*").order("sort_order"), siteId),
       scoped(supabase.from("portfolio_product_features").select("*").order("sort_order"), siteId),
+      scoped(supabase.from("portfolio_journey_stages").select("*").order("sort_order"), siteId),
+      scoped(supabase.from("portfolio_experience_photos").select("*").order("sort_order"), siteId),
     ]);
 
     return {
@@ -189,6 +197,12 @@ export async function getAdminCollections() {
       productFeatures: productFeatures.error
         ? fallback.productFeatures
         : ((productFeatures.data as ProductFeatureRow[]) || fallback.productFeatures),
+      journeyStages: journeyStages.error
+        ? fallback.journeyStages
+        : ((journeyStages.data as JourneyStageRow[]) || fallback.journeyStages),
+      experiencePhotos: experiencePhotos.error
+        ? fallback.experiencePhotos
+        : ((experiencePhotos.data as ExperiencePhotoRow[]) || fallback.experiencePhotos),
       configured: true,
       siteId,
     };

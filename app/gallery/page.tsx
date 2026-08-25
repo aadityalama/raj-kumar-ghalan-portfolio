@@ -16,8 +16,12 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const portfolio = await getPublicPortfolio();
   const name = brandDisplayName(portfolio.settings);
-  const galleryTitle = `Photo Gallery | ${name}`;
-  const galleryDescription = `Explore photos from ${name}'s work, projects, and experiences.`;
+  const galleryTitle = portfolio.settings.gallery_page_title
+    ? `${portfolio.settings.gallery_page_title} | ${name}`
+    : `Photo Gallery | ${name}`;
+  const galleryDescription =
+    portfolio.settings.gallery_page_description ||
+    `Explore photos from ${name}'s work, projects, and experiences.`;
 
   return {
     title: {
@@ -50,6 +54,7 @@ export default async function GalleryPage() {
   ]);
   const items = navItems(portfolio);
   const wordmark = brandWordmark(portfolio.settings);
+  const { settings } = portfolio;
 
   return (
     <>
@@ -61,14 +66,14 @@ export default async function GalleryPage() {
           <Container>
             <header className="mb-12 max-w-3xl sm:mb-16">
               <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.28em] text-accent">
-                Photo Gallery
+                {settings.gallery_page_eyebrow || "Photo Gallery"}
               </p>
               <h1 className="text-balance text-[clamp(2rem,4.6vw,3.75rem)] font-medium leading-[1.05] tracking-[-0.04em]">
-                Moments from the work, the journey, and the build.
+                {settings.gallery_page_title || "Moments from the work, the journey, and the build."}
               </h1>
               <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-muted sm:text-lg">
-                A collection of photographs from projects, professional life, and experiences —
-                managed from the admin gallery and kept current as new frames are published.
+                {settings.gallery_page_description ||
+                  "A collection of photographs from projects, professional life, and experiences — managed from the admin gallery and kept current as new frames are published."}
               </p>
             </header>
             <PhotoGallery photos={photos} />

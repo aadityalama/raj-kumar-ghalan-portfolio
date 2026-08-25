@@ -1,4 +1,3 @@
-import { site } from "@/config/site";
 import { Container } from "@/components/ui/container";
 import type { SocialRow } from "@/lib/cms/types";
 
@@ -6,7 +5,7 @@ export function SiteFooter({
   positioning,
   items,
   socials,
-  wordmark = site.wordmark,
+  wordmark,
   copyrightText,
 }: {
   positioning: string;
@@ -16,7 +15,7 @@ export function SiteFooter({
   copyrightText?: string;
 }) {
   const year = new Date().getFullYear();
-  const name = copyrightText?.trim() || wordmark;
+  const name = copyrightText?.trim() || wordmark || "";
 
   return (
     <footer className="border-t border-border py-12 pb-[calc(3rem+var(--safe-bottom))]">
@@ -24,7 +23,7 @@ export function SiteFooter({
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="font-mono text-[11px] tracking-[0.22em]">{wordmark}</p>
-            <p className="mt-3 text-sm text-muted">{positioning || site.positioning}</p>
+            <p className="mt-3 text-sm text-muted">{positioning}</p>
           </div>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
             {items.map((item) => (

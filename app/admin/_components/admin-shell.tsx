@@ -6,20 +6,26 @@ import { usePathname } from "next/navigation";
 import { ADMIN_PRODUCT_NAME } from "@/config/admin";
 import { logoutAction } from "@/lib/cms/actions";
 
-const links = [
-  { href: "/admin", label: "Dashboard" },
+const primaryLinks = [
+  { href: "/admin", label: "Overview" },
   { href: "/admin/content", label: "Homepage" },
-  { href: "/admin/sections", label: "Homepage sections" },
+  { href: "/admin/about", label: "About" },
   { href: "/admin/experience", label: "Experience" },
   { href: "/admin/projects", label: "Projects" },
   { href: "/admin/skills", label: "Skills" },
   { href: "/admin/gallery", label: "Gallery" },
-  { href: "/admin/product", label: "Product / Featured Work" },
-  { href: "/admin/market", label: "Spotlight" },
-  { href: "/admin/social", label: "Social" },
+  { href: "/admin/content-youtube", label: "Content / YouTube" },
+  { href: "/admin/market", label: "Market / NEPSE" },
+  { href: "/admin/social", label: "Social Links" },
+  { href: "/admin/sections", label: "Navigation" },
+  { href: "/admin/footer", label: "Footer" },
+  { href: "/admin/settings", label: "Site Settings" },
+];
+
+const secondaryLinks = [
+  { href: "/admin/product", label: "Featured case study" },
   { href: "/admin/seo", label: "SEO" },
   { href: "/admin/contact", label: "Contact" },
-  { href: "/admin/settings", label: "Settings" },
   { href: "/admin/onboarding", label: "Setup wizard" },
 ];
 
@@ -33,17 +39,34 @@ export function AdminShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/admin" && pathname.startsWith(href));
+
   const nav = (
     <>
       <p className="font-mono text-[11px] tracking-[0.22em]">{ADMIN_PRODUCT_NAME.toUpperCase()}</p>
       <p className="mt-2 text-sm text-muted">{email}</p>
       <nav className="mt-6 grid gap-1">
-        {links.map((link) => (
+        {primaryLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
             className="admin-link"
-            data-active={pathname === link.href || (link.href !== "/admin" && pathname.startsWith(link.href))}
+            data-active={isActive(link.href)}
+            onClick={() => setOpen(false)}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </nav>
+      <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">More</p>
+      <nav className="mt-2 grid gap-1">
+        {secondaryLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="admin-link"
+            data-active={isActive(link.href)}
             onClick={() => setOpen(false)}
           >
             {link.label}

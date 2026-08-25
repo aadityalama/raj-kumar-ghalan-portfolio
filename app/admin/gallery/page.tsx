@@ -1,18 +1,46 @@
 import Image from "next/image";
 import { ActionForm, ConfirmForm } from "@/app/admin/_components/form-status";
-import { deleteGalleryAction, saveGalleryAction } from "@/lib/cms/actions";
+import { deleteGalleryAction, saveGalleryAction, saveSettingsAction } from "@/lib/cms/actions";
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { getAdminCollections } from "@/lib/cms/admin-data";
 import { GALLERY_CATEGORIES } from "@/lib/cms/types";
 
 export default async function AdminGalleryPage() {
   await requireAdmin();
-  const { gallery } = await getAdminCollections();
+  const { gallery, settings } = await getAdminCollections();
 
   return (
     <div>
       <h1 className="text-4xl tracking-[-0.04em]">Gallery</h1>
       <p className="mt-3 text-sm text-muted">
+        Manage gallery photos and the gallery page / homepage gallery call-to-action copy.
+      </p>
+
+      <ActionForm action={saveSettingsAction} className="admin-card mt-8 grid gap-4 p-5">
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">Gallery page & CTA</p>
+        <label className="grid gap-2 text-sm">
+          Gallery page eyebrow
+          <input className="admin-input" name="gallery_page_eyebrow" defaultValue={settings.gallery_page_eyebrow || "Photo Gallery"} />
+        </label>
+        <label className="grid gap-2 text-sm">
+          Gallery page title
+          <input className="admin-input" name="gallery_page_title" defaultValue={settings.gallery_page_title || ""} />
+        </label>
+        <label className="grid gap-2 text-sm">
+          Gallery page description
+          <textarea className="admin-textarea" name="gallery_page_description" defaultValue={settings.gallery_page_description || ""} />
+        </label>
+        <label className="grid gap-2 text-sm">
+          Homepage gallery CTA label
+          <input className="admin-input" name="gallery_cta_label" defaultValue={settings.gallery_cta_label || "View Photo Gallery"} />
+        </label>
+        <label className="grid gap-2 text-sm">
+          Homepage gallery CTA link
+          <input className="admin-input" name="gallery_cta_href" defaultValue={settings.gallery_cta_href || "/gallery"} />
+        </label>
+      </ActionForm>
+
+      <p className="mt-8 text-sm text-muted">
         JPEG, PNG, WebP, or GIF. 5MB max. Multiple files can be uploaded together.
       </p>
 

@@ -21,7 +21,9 @@ import {
   getPublicPortfolio,
   groupedSkills,
   isSectionVisible,
+  journeyStagesByKind,
   navItems,
+  sectionMeta,
   socialByPlatform,
 } from "@/lib/cms/public";
 
@@ -42,6 +44,24 @@ export default async function Home() {
         portfolio.productFeatures.length > 0 ||
         Boolean(portfolio.productSettings.case_title)));
 
+  const aboutMeta = sectionMeta(portfolio, "about");
+  const experienceMeta = sectionMeta(portfolio, "experience");
+  const projectsMeta = sectionMeta(portfolio, "projects", {
+    eyebrow: "03 / Work",
+    title: "Selected work",
+    description: "Projects that show how ideas become usable products.",
+  });
+  const skillsMeta = sectionMeta(portfolio, "skills", {
+    eyebrow: "06 / Capabilities",
+    title: "What I Work With",
+    description:
+      "A working set of product, technology, markets, AI, and content skills — used to ship real things, not a logo wall.",
+  });
+  const contentMeta = sectionMeta(portfolio, "content");
+  const marketMeta = sectionMeta(portfolio, "market");
+  const careerStages = journeyStagesByKind(portfolio, "career");
+  const experienceStages = journeyStagesByKind(portfolio, "experience");
+
   return (
     <>
       <ScrollProgress />
@@ -49,19 +69,34 @@ export default async function Home() {
       <Cursor />
       <main id="main">
         <Hero settings={portfolio.settings} portrait={featuredPortrait(portfolio)} />
-        {show("about") ? <About settings={portfolio.settings} /> : null}
+        {show("about") ? (
+          <About
+            settings={portfolio.settings}
+            eyebrow={aboutMeta.eyebrow || portfolio.settings.about_eyebrow}
+          />
+        ) : null}
         {show("experience") ? (
-          <Experience settings={portfolio.settings} items={portfolio.experience} />
+          <Experience
+            settings={portfolio.settings}
+            items={portfolio.experience}
+            stages={experienceStages}
+            photos={portfolio.experiencePhotos}
+            eyebrow={experienceMeta.eyebrow}
+          />
         ) : null}
         {show("market") ? (
           <Market
             settings={portfolio.settings}
             facebookUrl={spotlightSocial?.href || portfolio.settings.market_facebook_url}
+            eyebrow={marketMeta.eyebrow}
           />
         ) : null}
         {show("projects") ? (
           <FeaturedProjects
             items={featuredProjects.length ? featuredProjects : portfolio.projects.slice(0, 1)}
+            eyebrow={projectsMeta.eyebrow}
+            title={projectsMeta.title}
+            description={projectsMeta.description}
           />
         ) : null}
         {showProduct ? (
@@ -72,15 +107,32 @@ export default async function Home() {
           />
         ) : null}
         {show("projects") ? (
-          <OtherProjects items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)} />
+          <OtherProjects
+            items={featuredProjects.length ? otherProjects : portfolio.projects.slice(1)}
+            eyebrow={portfolio.settings.other_projects_eyebrow}
+            title={portfolio.settings.other_projects_title}
+          />
         ) : null}
-        {show("skills") ? <Skills groups={groupedSkills(portfolio.skills)} /> : null}
+        {show("skills") ? (
+          <Skills
+            groups={groupedSkills(portfolio.skills)}
+            eyebrow={skillsMeta.eyebrow}
+            title={skillsMeta.title}
+            description={skillsMeta.description}
+          />
+        ) : null}
         {show("content") ? (
-          <ContentCreation settings={portfolio.settings} socials={portfolio.socials} />
+          <ContentCreation
+            settings={portfolio.settings}
+            socials={portfolio.socials}
+            eyebrow={contentMeta.eyebrow}
+          />
         ) : null}
-        {show("experience") ? <CareerTimeline /> : null}
+        {show("experience") ? (
+          <CareerTimeline settings={portfolio.settings} stages={careerStages} />
+        ) : null}
         {show("philosophy") ? <Philosophy text={portfolio.settings.philosophy} /> : null}
-        {show("gallery") ? <GalleryCta /> : null}
+        {show("gallery") ? <GalleryCta settings={portfolio.settings} /> : null}
         {show("contact") ? <Contact contact={portfolio.contact} socials={portfolio.socials} /> : null}
       </main>
       <SiteFooter

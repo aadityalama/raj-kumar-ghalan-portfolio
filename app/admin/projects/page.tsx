@@ -1,16 +1,31 @@
 import Image from "next/image";
 import { ActionForm, ConfirmForm } from "@/app/admin/_components/form-status";
-import { deleteProjectAction, saveProjectAction } from "@/lib/cms/actions";
+import { deleteProjectAction, saveProjectAction, saveSettingsAction } from "@/lib/cms/actions";
 import { requireAdmin } from "@/lib/cms/admin-auth";
 import { getAdminCollections } from "@/lib/cms/admin-data";
 
 export default async function AdminProjectsPage() {
   await requireAdmin();
-  const { projects } = await getAdminCollections();
+  const { projects, settings } = await getAdminCollections();
 
   return (
     <div>
       <h1 className="text-4xl tracking-[-0.04em]">Projects</h1>
+      <p className="mt-3 text-sm text-muted">
+        Manage featured and other projects. Section titles and eyebrows can also be edited on the Navigation page.
+      </p>
+
+      <ActionForm action={saveSettingsAction} className="admin-card mt-8 grid gap-4 p-5">
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">Other projects section</p>
+        <label className="grid gap-2 text-sm">
+          Other projects eyebrow
+          <input className="admin-input" name="other_projects_eyebrow" defaultValue={settings.other_projects_eyebrow || "More work"} />
+        </label>
+        <label className="grid gap-2 text-sm">
+          Other projects title
+          <input className="admin-input" name="other_projects_title" defaultValue={settings.other_projects_title || "Other projects"} />
+        </label>
+      </ActionForm>
       <article className="admin-card mt-8 p-5">
         <h2 className="text-lg">Add project</h2>
         <ActionForm action={saveProjectAction} className="mt-4 grid gap-3 sm:grid-cols-2">

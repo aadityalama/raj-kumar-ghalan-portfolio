@@ -343,6 +343,8 @@ export function fallbackPortfolio(): PublicPortfolio {
     productSettings: defaultProductSettings(),
     productCards: defaultProductCards(),
     productFeatures: defaultProductFeatures(),
+    journeyStages: [],
+    experiencePhotos: [],
     source: "fallback",
   };
 }

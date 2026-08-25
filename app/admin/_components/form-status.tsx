@@ -47,7 +47,7 @@ export function ActionForm({
         <p className="mt-3 text-sm text-muted">Upload in progress. Keep this page open.</p>
       ) : null}
       {state?.error ? <p className="mt-3 text-sm text-red-400">{state.error}</p> : null}
-      {state?.ok ? <p className="mt-3 text-sm text-accent">Saved.</p> : null}
+      {state?.ok ? <p className="mt-3 text-sm text-accent">Saved successfully.</p> : null}
     </form>
   );
 }
