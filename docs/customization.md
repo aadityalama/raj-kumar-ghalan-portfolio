@@ -46,8 +46,10 @@ The premium dark aesthetic, typography, motion, and green accent system live in:
 
 Preserve these patterns when extending the product.
 
-## Multi-site readiness
+## Multi-site isolation
 
-`portfolio_sites`, `portfolio_site_members`, and `site_id` columns prepare the schema for future Free / Starter / Pro / Agency plans (custom domains, multiple portfolios, analytics, blog, etc.).
+`portfolio_sites`, `portfolio_site_members`, `portfolio_site_domains`, and `site_id` columns scope every CMS read/write to one tenant.
 
-This release still targets one site per Hostinger deployment via `PORTFOLIO_SITE_SLUG` (default `default`).
+- **Branding content** (`website_name`, `brand_name`, wordmark, logo, accent) is per `site_id`.
+- **Public routing** uses Host → `portfolio_site_domains` → optional `PORTFOLIO_SITE_SLUG` → owner site (`is_owner_site`).
+- Setup Wizard and Admin mutations resolve `site_id` from the authenticated admin — never from form fields or website name.

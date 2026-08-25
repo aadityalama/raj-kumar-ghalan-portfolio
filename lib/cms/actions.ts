@@ -12,6 +12,7 @@ import {
   migrationHintForMissingColumn,
   pickSettingsPayload,
 } from "@/lib/cms/settings-schema";
+import { assertSiteId } from "@/lib/cms/site";
 import { adminEmail, hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -33,14 +34,7 @@ export async function loginAction(
   const password = String(formData.get("password") || "");
   const allowed = adminEmail();
 
-  if (!allowed) {
-    return {
-      error:
-        "Admin access is not configured. Set server-only ADMIN_EMAIL on the host to the designated Auth user email.",
-    };
-  }
   if (!email || !password) return { error: "Email and password are required." };
-  if (email !== allowed) return { error: "This account is not authorized for admin access." };
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -49,7 +43,23 @@ export async function loginAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user?.email || user.email.toLowerCase() !== allowed) {
+  if (!user?.email) {
+    await supabase.auth.signOut();
+    return { error: "This account is not authorized for admin access." };
+  }
+
+  const userEmail = user.email.toLowerCase();
+  let authorized = Boolean(allowed && userEmail === allowed);
+  if (!authorized) {
+    const { data: adminRow } = await supabase
+      .from("portfolio_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    authorized = Boolean(adminRow);
+  }
+
+  if (!authorized) {
     await supabase.auth.signOut();
     return { error: "This account is not authorized for admin access." };
   }
@@ -67,12 +77,40 @@ export async function logoutAction() {
 
 async function adminClient() {
   const { supabase, siteId } = await requireSiteEditor();
+  assertSiteId(siteId);
   return { supabase, siteId };
 }
 
-function withSite<T extends Record<string, unknown>>(payload: T, siteId: string | null) {
-  if (!siteId) return payload;
-  return { ...payload, site_id: siteId };
+/** Always attach server-resolved site_id. Never accept client-provided site_id. */
+function withSite<T extends Record<string, unknown>>(payload: T, siteId: string) {
+  assertSiteId(siteId);
+  const rest = { ...payload } as T & { site_id?: unknown };
+  delete rest.site_id;
+  return { ...rest, site_id: siteId };
+}
+
+function updateOwnedRow(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  table: string,
+  siteId: string,
+  id: string,
+  payload: Record<string, unknown>,
+) {
+  assertSiteId(siteId);
+  // Dynamic table name — cast keeps PostgREST builder chaining typed loosely.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase.from(table) as any).update(payload).eq("id", id).eq("site_id", siteId);
+}
+
+function deleteOwnedRow(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  table: string,
+  siteId: string,
+  id: string,
+) {
+  assertSiteId(siteId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase.from(table) as any).delete().eq("id", id).eq("site_id", siteId);
 }
 
 const SETTINGS_FIELDS = [
@@ -113,26 +151,33 @@ const BRAND_FIELDS = [
 
 async function readSettingsRow(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  siteId: string | null,
+  siteId: string,
 ) {
-  const query = siteId
-    ? supabase.from("portfolio_settings").select("*").eq("site_id", siteId)
-    : supabase.from("portfolio_settings").select("*").eq("id", 1);
-  return query.maybeSingle();
+  assertSiteId(siteId);
+  return supabase.from("portfolio_settings").select("*").eq("site_id", siteId).maybeSingle();
 }
 
 async function upsertSettingsRow(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  siteId: string | null,
+  siteId: string,
   payload: Record<string, unknown>,
 ) {
+  assertSiteId(siteId);
   const columns = await getPortfolioSettingsColumns();
+  if (!columns.has("site_id")) {
+    return {
+      error:
+        "Database is missing site_id isolation. Apply supabase/migrations/007_productize_multitenant.sql and 009_site_isolation.sql, then reload the API schema.",
+    };
+  }
+
   const filtered = pickSettingsPayload(withSite({ ...payload }, siteId), columns);
+  // Never force singleton id=1 — one settings row per site_id.
+  delete filtered.id;
 
-  // Always keep id for singleton upserts on legacy schemas.
-  if (filtered.id == null) filtered.id = 1;
-
-  const { error } = await supabase.from("portfolio_settings").upsert(filtered);
+  const { error } = await supabase
+    .from("portfolio_settings")
+    .upsert(filtered, { onConflict: "site_id" });
   if (!error) return { ok: true as const };
 
   if (isMissingColumnError(error.message)) {
@@ -144,9 +189,7 @@ async function upsertSettingsRow(
 export async function saveSettingsAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const { data: current } = await readSettingsRow(supabase, siteId);
-  const payload: Record<string, string | number | boolean> = {
-    id: current?.id || 1,
-  };
+  const payload: Record<string, string | number | boolean> = {};
 
   for (const key of SETTINGS_FIELDS) {
     if (formData.has(key)) payload[key] = String(formData.get(key) || "");
@@ -180,9 +223,7 @@ export async function saveBrandSettingsAction(formData: FormData) {
   if (missing) return { error: missing };
 
   const { data: current } = await readSettingsRow(supabase, siteId);
-  const payload: Record<string, string | number | boolean> = {
-    id: current?.id || 1,
-  };
+  const payload: Record<string, string | number | boolean> = {};
 
   for (const key of SETTINGS_FIELDS) {
     if (current && current[key] != null) payload[key] = current[key] as string;
@@ -240,9 +281,7 @@ export async function saveOnboardingAction(formData: FormData) {
   const step = String(formData.get("step") || "");
   const { data: current } = await readSettingsRow(supabase, siteId);
 
-  const payload: Record<string, string | number | boolean> = {
-    id: current?.id || 1,
-  };
+  const payload: Record<string, string | number | boolean> = {};
 
   // Preserve existing core fields so partial onboarding steps do not wipe content.
   for (const key of SETTINGS_FIELDS) {
@@ -307,15 +346,13 @@ export async function saveOnboardingAction(formData: FormData) {
     if (columns.has("onboarding_completed")) {
       payload.onboarding_completed = true;
     }
-    if (siteId) {
-      await supabase
-        .from("portfolio_sites")
-        .update({
-          onboarding_completed: true,
-          name: String(payload.brand_name || payload.website_name || payload.hero_title || "Portfolio"),
-        })
-        .eq("id", siteId);
-    }
+    await supabase
+      .from("portfolio_sites")
+      .update({
+        onboarding_completed: true,
+        name: String(payload.brand_name || payload.website_name || payload.hero_title || "Portfolio"),
+      })
+      .eq("id", siteId);
   }
 
   const result = await upsertSettingsRow(supabase, siteId, payload);
@@ -367,20 +404,21 @@ export async function saveOnboardingAction(formData: FormData) {
 
 export async function deleteHeroImageAction() {
   const { supabase, siteId } = await adminClient();
-  const currentQuery = siteId
-    ? supabase.from("portfolio_settings").select("hero_image_url,id").eq("site_id", siteId)
-    : supabase.from("portfolio_settings").select("hero_image_url,id").eq("id", 1);
-  const { data: current, error: readError } = await currentQuery.maybeSingle();
+  const { data: current, error: readError } = await supabase
+    .from("portfolio_settings")
+    .select("hero_image_url,id")
+    .eq("site_id", siteId)
+    .maybeSingle();
 
   if (readError) return { error: readError.message };
   if (!current?.hero_image_url) return { error: "No profile photo to remove." };
 
   const storagePath = profileStoragePathFromUrl(current.hero_image_url);
 
-  const updateQuery = siteId
-    ? supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("site_id", siteId)
-    : supabase.from("portfolio_settings").update({ hero_image_url: "" }).eq("id", 1);
-  const { error } = await updateQuery;
+  const { error } = await supabase
+    .from("portfolio_settings")
+    .update({ hero_image_url: "" })
+    .eq("site_id", siteId);
   if (error) return { error: error.message };
 
   if (storagePath) {
@@ -401,7 +439,6 @@ export async function saveContactAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const payload = withSite(
     {
-      id: 1,
       email: String(formData.get("email") || ""),
       phone: String(formData.get("phone") || ""),
       location: String(formData.get("location") || ""),
@@ -409,7 +446,7 @@ export async function saveContactAction(formData: FormData) {
     },
     siteId,
   );
-  const { error } = await supabase.from("portfolio_contact").upsert(payload);
+  const { error } = await supabase.from("portfolio_contact").upsert(payload, { onConflict: "site_id" });
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -433,7 +470,6 @@ export async function saveSeoAction(formData: FormData) {
   }
   const payload = withSite(
     {
-      id: 1,
       site_title: String(formData.get("site_title") || ""),
       meta_description: String(formData.get("meta_description") || ""),
       keywords,
@@ -443,26 +479,23 @@ export async function saveSeoAction(formData: FormData) {
     },
     siteId,
   );
-  const { error } = await supabase.from("portfolio_seo").upsert(payload);
+  const { error } = await supabase.from("portfolio_seo").upsert(payload, { onConflict: "site_id" });
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function saveSectionAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
-  const { error } = await supabase
-    .from("portfolio_sections")
-    .update({
+  const { error } = await updateOwnedRow(supabase, "portfolio_sections", siteId, id, {
       label: String(formData.get("label") || ""),
       href: String(formData.get("href") || ""),
       title: String(formData.get("title") || ""),
       description: String(formData.get("description") || ""),
       visible: formData.get("visible") === "on",
       sort_order: Number(formData.get("sort_order") || 0),
-    })
-    .eq("id", id);
+    });
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -480,7 +513,7 @@ export async function saveSocialAction(formData: FormData) {
     sort_order: Number(formData.get("sort_order") || 0),
   };
   const query = id
-    ? supabase.from("portfolio_social_links").update(payload).eq("id", id)
+    ? updateOwnedRow(supabase, "portfolio_social_links", siteId, id, payload)
     : supabase.from("portfolio_social_links").insert(withSite(payload, siteId));
   const { error } = await query;
   if (error) return { error: error.message };
@@ -489,8 +522,13 @@ export async function saveSocialAction(formData: FormData) {
 }
 
 export async function deleteSocialAction(formData: FormData) {
-  const { supabase } = await adminClient();
-  const { error } = await supabase.from("portfolio_social_links").delete().eq("id", String(formData.get("id") || ""));
+  const { supabase, siteId } = await adminClient();
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_social_links",
+    siteId,
+    String(formData.get("id") || ""),
+  );
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -522,6 +560,7 @@ export async function saveGalleryAction(formData: FormData) {
     const { data: last } = await supabase
       .from("portfolio_gallery")
       .select("sort_order")
+      .eq("site_id", siteId)
       .order("sort_order", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -576,11 +615,15 @@ export async function saveGalleryAction(formData: FormData) {
   };
 
   if (payload.featured) {
-    await supabase.from("portfolio_gallery").update({ featured: false }).neq("id", id || "00000000-0000-0000-0000-000000000000");
+    await supabase
+      .from("portfolio_gallery")
+      .update({ featured: false })
+      .eq("site_id", siteId)
+      .neq("id", id || "00000000-0000-0000-0000-000000000000");
   }
 
   const { error } = id
-    ? await supabase.from("portfolio_gallery").update(payload).eq("id", id)
+    ? await updateOwnedRow(supabase, "portfolio_gallery", siteId, id, payload)
     : await supabase.from("portfolio_gallery").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
@@ -588,10 +631,10 @@ export async function saveGalleryAction(formData: FormData) {
 }
 
 export async function deleteGalleryAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
-  const { error } = await supabase.from("portfolio_gallery").delete().eq("id", id);
+  const { error } = await deleteOwnedRow(supabase, "portfolio_gallery", siteId, id);
   if (error) return { error: error.message };
   if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
   refreshPublic();
@@ -632,7 +675,7 @@ export async function saveProjectAction(formData: FormData) {
     sort_order: Number(formData.get("sort_order") || 0),
   };
   const { error } = id
-    ? await supabase.from("portfolio_projects").update(payload).eq("id", id)
+    ? await updateOwnedRow(supabase, "portfolio_projects", siteId, id, payload)
     : await supabase.from("portfolio_projects").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
@@ -640,9 +683,14 @@ export async function saveProjectAction(formData: FormData) {
 }
 
 export async function deleteProjectAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const path = String(formData.get("image_path") || "");
-  const { error } = await supabase.from("portfolio_projects").delete().eq("id", String(formData.get("id") || ""));
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_projects",
+    siteId,
+    String(formData.get("id") || ""),
+  );
   if (error) return { error: error.message };
   if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
   refreshPublic();
@@ -666,7 +714,7 @@ export async function saveExperienceAction(formData: FormData) {
     sort_order: Number(formData.get("sort_order") || 0),
   };
   const { error } = id
-    ? await supabase.from("portfolio_experience").update(payload).eq("id", id)
+    ? await updateOwnedRow(supabase, "portfolio_experience", siteId, id, payload)
     : await supabase.from("portfolio_experience").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
@@ -674,8 +722,13 @@ export async function saveExperienceAction(formData: FormData) {
 }
 
 export async function deleteExperienceAction(formData: FormData) {
-  const { supabase } = await adminClient();
-  const { error } = await supabase.from("portfolio_experience").delete().eq("id", String(formData.get("id") || ""));
+  const { supabase, siteId } = await adminClient();
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_experience",
+    siteId,
+    String(formData.get("id") || ""),
+  );
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -707,11 +760,9 @@ export async function saveSkillAction(
   if (id) {
     // UPDATE only — never insert when editing. .select() so a 0-row match
     // (bad id / RLS) surfaces as an error instead of a false "Saved."
-    const { data, error } = await supabase
-      .from("portfolio_skills")
-      .update(payload)
-      .eq("id", id)
-      .select("id");
+    const { data, error } = await updateOwnedRow(supabase, "portfolio_skills", siteId, id, payload).select(
+      "id",
+    );
     if (error) return { error: error.message };
     if (!data?.length) {
       return { error: "Skill could not be updated. Refresh and try again." };
@@ -727,8 +778,13 @@ export async function saveSkillAction(
 }
 
 export async function deleteSkillAction(formData: FormData) {
-  const { supabase } = await adminClient();
-  const { error } = await supabase.from("portfolio_skills").delete().eq("id", String(formData.get("id") || ""));
+  const { supabase, siteId } = await adminClient();
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_skills",
+    siteId,
+    String(formData.get("id") || ""),
+  );
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -742,7 +798,6 @@ export async function saveProductSettingsAction(formData: FormData) {
     .filter(Boolean);
   const payload = withSite(
     {
-      id: 1,
       section_title: String(formData.get("section_title") || "The Product").trim() || "The Product",
       case_title: String(formData.get("case_title") || ""),
       case_eyebrow: String(formData.get("case_eyebrow") || "Featured work"),
@@ -765,7 +820,9 @@ export async function saveProductSettingsAction(formData: FormData) {
     },
     siteId,
   );
-  const { error } = await supabase.from("portfolio_product_settings").upsert(payload);
+  const { error } = await supabase
+    .from("portfolio_product_settings")
+    .upsert(payload, { onConflict: "site_id" });
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
@@ -789,8 +846,7 @@ export async function saveProductCardAction(formData: FormData) {
     }
   }
 
-  const payload = withSite(
-    {
+  const payload = {
       title: String(formData.get("title") || "").trim() || "Untitled",
       description: String(formData.get("description") || ""),
       category: String(formData.get("category") || ""),
@@ -799,28 +855,26 @@ export async function saveProductCardAction(formData: FormData) {
       link_url: String(formData.get("link_url") || "").trim(),
       visible: formData.get("visible") === "on",
       sort_order: Number(formData.get("sort_order") || 0),
-    },
-    id ? null : siteId,
-  );
+    };
 
   const { error } = id
-    ? await supabase.from("portfolio_product_cards").update(payload).eq("id", id)
-    : await supabase.from("portfolio_product_cards").insert(payload);
+    ? await updateOwnedRow(supabase, "portfolio_product_cards", siteId, id, payload)
+    : await supabase.from("portfolio_product_cards").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function removeProductCardImageAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
   if (!id) return { error: "Product card id is required." };
 
-  const { error } = await supabase
-    .from("portfolio_product_cards")
-    .update({ image_url: "", image_path: null })
-    .eq("id", id);
+  const { error } = await updateOwnedRow(supabase, "portfolio_product_cards", siteId, id, {
+    image_url: "",
+    image_path: null,
+  });
   if (error) return { error: error.message };
 
   if (path) {
@@ -838,10 +892,10 @@ export async function removeProductCardImageAction(formData: FormData) {
 }
 
 export async function deleteProductCardAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
   const path = String(formData.get("image_path") || "");
-  const { error } = await supabase.from("portfolio_product_cards").delete().eq("id", id);
+  const { error } = await deleteOwnedRow(supabase, "portfolio_product_cards", siteId, id);
   if (error) return { error: error.message };
   if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
   refreshPublic();
@@ -851,36 +905,35 @@ export async function deleteProductCardAction(formData: FormData) {
 export async function saveProductFeatureAction(formData: FormData) {
   const { supabase, siteId } = await adminClient();
   const id = String(formData.get("id") || "");
-  const payload = withSite(
-    {
+  const payload = {
       title: String(formData.get("title") || "").trim() || "Untitled",
       description: String(formData.get("description") || ""),
       visible: formData.get("visible") === "on",
       sort_order: Number(formData.get("sort_order") || 0),
-    },
-    id ? null : siteId,
-  );
+    };
   const { error } = id
-    ? await supabase.from("portfolio_product_features").update(payload).eq("id", id)
-    : await supabase.from("portfolio_product_features").insert(payload);
+    ? await updateOwnedRow(supabase, "portfolio_product_features", siteId, id, payload)
+    : await supabase.from("portfolio_product_features").insert(withSite(payload, siteId));
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function deleteProductFeatureAction(formData: FormData) {
-  const { supabase } = await adminClient();
-  const { error } = await supabase
-    .from("portfolio_product_features")
-    .delete()
-    .eq("id", String(formData.get("id") || ""));
+  const { supabase, siteId } = await adminClient();
+  const { error } = await deleteOwnedRow(
+    supabase,
+    "portfolio_product_features",
+    siteId,
+    String(formData.get("id") || ""),
+  );
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
 }
 
 export async function moveRowAction(formData: FormData) {
-  const { supabase } = await adminClient();
+  const { supabase, siteId } = await adminClient();
   const table = String(formData.get("table") || "");
   const allowed = [
     "portfolio_gallery",
@@ -895,7 +948,7 @@ export async function moveRowAction(formData: FormData) {
   if (!allowed.includes(table)) return { error: "Invalid table." };
   const id = String(formData.get("id") || "");
   const sortOrder = Number(formData.get("sort_order") || 0);
-  const { error } = await supabase.from(table).update({ sort_order: sortOrder }).eq("id", id);
+  const { error } = await updateOwnedRow(supabase, table, siteId, id, { sort_order: sortOrder });
   if (error) return { error: error.message };
   refreshPublic();
   return { ok: true };
