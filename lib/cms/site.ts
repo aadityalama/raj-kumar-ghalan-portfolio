@@ -84,10 +84,55 @@ function markOwnerIfDefault(site: ResolvedSite | null): ResolvedSite | null {
   return site;
 }
 
+function schemaUnreadableMessage(context: string, message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("schema cache") || normalized.includes("does not exist")) {
+    return (
+      `${context}: ${message}. ` +
+      `If migration 007 was applied in the SQL Editor, refresh PostgREST with: NOTIFY pgrst, 'reload schema';`
+    );
+  }
+  return `${context}: ${message}`;
+}
+
+/**
+ * Load a site by id/slug.
+ * Prefer CORE columns (migration 007) so pre-009 databases work; then enrich
+ * with is_owner_site when migration 009 is present.
+ */
 async function fetchSiteRow(
   supabase: SupabaseServer,
   filter: { column: "id" | "slug"; value: string },
 ): Promise<ResolvedSite | null> {
+  // CORE-first: slug/id resolution must not depend on migration 009's is_owner_site.
+  const core = await supabase
+    .from("portfolio_sites")
+    .select(SITE_COLUMNS_CORE)
+    .eq(filter.column, filter.value)
+    .maybeSingle();
+
+  if (core.error) {
+    if (
+      core.error.message.toLowerCase().includes("portfolio_sites") ||
+      core.error.message.toLowerCase().includes("schema cache")
+    ) {
+      throw new Error(
+        schemaUnreadableMessage(
+          `Could not load portfolio site (${filter.column}=${filter.value})`,
+          core.error.message,
+        ),
+      );
+    }
+    throw new Error(
+      `Could not load portfolio site (${filter.column}=${filter.value}): ${core.error.message}`,
+    );
+  }
+
+  if (!core.data) return null;
+
+  const base = markOwnerIfDefault(core.data as ResolvedSite) as ResolvedSite;
+
+  // Optional enrichment when migration 009 is applied.
   const owned = await supabase
     .from("portfolio_sites")
     .select(SITE_COLUMNS_WITH_OWNER)
@@ -99,32 +144,11 @@ async function fetchSiteRow(
   }
 
   if (owned.error && isMissingColumnError(owned.error.message, "is_owner_site")) {
-    const legacy = await supabase
-      .from("portfolio_sites")
-      .select(SITE_COLUMNS_CORE)
-      .eq(filter.column, filter.value)
-      .maybeSingle();
-    if (legacy.error) {
-      throw new Error(
-        `Could not load portfolio site (${filter.column}=${filter.value}): ${legacy.error.message}`,
-      );
-    }
-    return markOwnerIfDefault((legacy.data as ResolvedSite | null) || null);
+    return base;
   }
 
-  if (owned.error) {
-    if (
-      owned.error.message.toLowerCase().includes("portfolio_sites") ||
-      owned.error.message.toLowerCase().includes("schema cache")
-    ) {
-      return null;
-    }
-    throw new Error(
-      `Could not load portfolio site (${filter.column}=${filter.value}): ${owned.error.message}`,
-    );
-  }
-
-  return null;
+  // Any other enrichment failure: keep the CORE row (owner/default still resolves).
+  return base;
 }
 
 async function fetchSiteById(supabase: SupabaseServer, siteId: string) {
@@ -136,7 +160,21 @@ async function fetchSiteBySlug(supabase: SupabaseServer, slug: string) {
   return fetchSiteRow(supabase, { column: "slug", value: slug });
 }
 
+/**
+ * Existing owner/default site only. Never creates a site.
+ *
+ * Order matters for production after migration 007 without 009:
+ * 1) slug='default' via CORE columns (always present after 007)
+ * 2) is_owner_site=true when migration 009 is present
+ *
+ * Previous code selected is_owner_site first; missing-column / schema-cache
+ * errors were misclassified as "table missing" and returned null — so the
+ * owner admin never reached the slug=default fallback even when the row existed.
+ */
 async function fetchOwnerSite(supabase: SupabaseServer): Promise<ResolvedSite | null> {
+  const byDefault = await fetchSiteBySlug(supabase, "default");
+  if (byDefault) return byDefault;
+
   const byFlag = await supabase
     .from("portfolio_sites")
     .select(SITE_COLUMNS_WITH_OWNER)
@@ -149,18 +187,18 @@ async function fetchOwnerSite(supabase: SupabaseServer): Promise<ResolvedSite | 
     return markOwnerIfDefault(byFlag.data as ResolvedSite);
   }
 
-  if (byFlag.error && !isMissingColumnError(byFlag.error.message, "is_owner_site")) {
-    if (
-      byFlag.error.message.toLowerCase().includes("portfolio_sites") ||
-      byFlag.error.message.toLowerCase().includes("schema cache")
-    ) {
-      return null;
-    }
-    throw new Error(`Could not load owner portfolio site: ${byFlag.error.message}`);
+  if (byFlag.error && isMissingColumnError(byFlag.error.message, "is_owner_site")) {
+    // Pre-009 DB and no slug=default row — nothing else to try.
+    return null;
   }
 
-  // Column missing or no is_owner_site row — use slug=default (migration 007).
-  return fetchSiteBySlug(supabase, "default");
+  if (byFlag.error) {
+    throw new Error(
+      schemaUnreadableMessage("Could not load owner portfolio site", byFlag.error.message),
+    );
+  }
+
+  return null;
 }
 
 async function fetchSiteByHost(

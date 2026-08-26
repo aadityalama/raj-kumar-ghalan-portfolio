@@ -54,9 +54,13 @@ const MIGRATION_HINT =
 
 export function isMissingColumnError(message: string, column?: string) {
   const normalized = message.toLowerCase();
-  if (!normalized.includes("schema cache") && !normalized.includes("could not find")) {
-    return false;
-  }
+  // PostgREST (PGRST204) and Postgres both surface missing columns differently.
+  const looksMissing =
+    normalized.includes("schema cache") ||
+    normalized.includes("could not find") ||
+    normalized.includes("does not exist") ||
+    normalized.includes("undefined column");
+  if (!looksMissing) return false;
   if (!column) return true;
   return normalized.includes(column.toLowerCase());
 }
