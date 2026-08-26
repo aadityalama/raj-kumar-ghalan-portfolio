@@ -94,6 +94,37 @@ function testPublicAndAdminScopeBySite() {
   assert.match(site, /Never trusts client-provided site_id/);
 }
 
+/** Owner resolution must work after migration 007 without requiring 009. */
+function testOwnerSiteResolvesDefaultBeforeOwnerFlag() {
+  const site = read("lib/cms/site.ts");
+  const fetchOwner = site.match(
+    /async function fetchOwnerSite\([\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(fetchOwner, "fetchOwnerSite must exist");
+
+  // CORE slug=default must be attempted before is_owner_site filter.
+  const defaultIdx = fetchOwner.indexOf('fetchSiteBySlug(supabase, "default")');
+  const flagIdx = fetchOwner.indexOf('.eq("is_owner_site", true)');
+  assert.ok(defaultIdx >= 0, "fetchOwnerSite must resolve slug=default");
+  assert.ok(flagIdx >= 0, "fetchOwnerSite may still use is_owner_site as fallback");
+  assert.ok(
+    defaultIdx < flagIdx,
+    "slug=default (migration 007) must be tried before is_owner_site (migration 009)",
+  );
+
+  // Site row loader must select CORE columns first (no 009 dependency).
+  const fetchRow = site.match(/async function fetchSiteRow\([\s\S]*?\n\}/)?.[0];
+  assert.ok(fetchRow, "fetchSiteRow must exist");
+  const coreIdx = fetchRow.indexOf("SITE_COLUMNS_CORE");
+  const ownedIdx = fetchRow.indexOf("SITE_COLUMNS_WITH_OWNER");
+  assert.ok(coreIdx >= 0 && ownedIdx >= 0, "fetchSiteRow must use CORE and WITH_OWNER selects");
+  assert.ok(coreIdx < ownedIdx, "fetchSiteRow must select CORE columns before is_owner_site");
+
+  // Owner admin path must never fall through to customer-* creation.
+  assert.match(site, /Refusing to create a customer site for the owner/);
+  assert.match(site, /if \(isOwnerAdmin\)/);
+}
+
 function testMigrationIsolation() {
   const migration = read("supabase/migrations/009_site_isolation.sql");
   assert.match(migration, /portfolio_site_domains/);
@@ -209,6 +240,7 @@ function main() {
   testNoGlobalSettingsSingletonInApp();
   testMutationsRequireSiteId();
   testPublicAndAdminScopeBySite();
+  testOwnerSiteResolvesDefaultBeforeOwnerFlag();
   testMigrationIsolation();
   testGrantDoesNotAttachCustomersToOwnerSite();
   testCrossTenantScenariosDocumentedInCode();
