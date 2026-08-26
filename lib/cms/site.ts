@@ -1,12 +1,18 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import type { SiteRow } from "@/lib/cms/types";
+import { isMissingColumnError } from "@/lib/cms/settings-schema";
 import { adminEmail, hasSupabaseEnv } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ResolvedSite = SiteRow & {
   is_owner_site?: boolean;
 };
+
+type SupabaseServer = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+const SITE_COLUMNS_CORE = "id,slug,name,plan_tier,onboarding_completed,created_at,updated_at";
+const SITE_COLUMNS_WITH_OWNER = `${SITE_COLUMNS_CORE},is_owner_site`;
 
 /** Optional deploy pin. Used only when Host does not match a site domain. */
 export function portfolioSiteSlug() {
@@ -50,6 +56,13 @@ export function hostCandidates(host: string) {
   return [...new Set(candidates)];
 }
 
+/** Owner site = is_owner_site flag, or legacy slug=default from migration 007. */
+export function isOwnerSiteRecord(site: ResolvedSite | null | undefined) {
+  if (!site?.id) return false;
+  if (site.is_owner_site === true) return true;
+  return site.slug === "default";
+}
+
 async function requestHost() {
   try {
     const h = await headers();
@@ -63,40 +76,90 @@ async function requestHost() {
   }
 }
 
-async function fetchSiteById(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  siteId: string,
-) {
-  const { data } = await supabase
-    .from("portfolio_sites")
-    .select("id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at")
-    .eq("id", siteId)
-    .maybeSingle();
-  return (data as ResolvedSite | null) || null;
+function markOwnerIfDefault(site: ResolvedSite | null): ResolvedSite | null {
+  if (!site) return null;
+  if (site.is_owner_site == null && site.slug === "default") {
+    return { ...site, is_owner_site: true };
+  }
+  return site;
 }
 
-async function fetchSiteBySlug(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  slug: string,
-) {
+async function fetchSiteRow(
+  supabase: SupabaseServer,
+  filter: { column: "id" | "slug"; value: string },
+): Promise<ResolvedSite | null> {
+  const owned = await supabase
+    .from("portfolio_sites")
+    .select(SITE_COLUMNS_WITH_OWNER)
+    .eq(filter.column, filter.value)
+    .maybeSingle();
+
+  if (!owned.error && owned.data) {
+    return markOwnerIfDefault(owned.data as ResolvedSite);
+  }
+
+  if (owned.error && isMissingColumnError(owned.error.message, "is_owner_site")) {
+    const legacy = await supabase
+      .from("portfolio_sites")
+      .select(SITE_COLUMNS_CORE)
+      .eq(filter.column, filter.value)
+      .maybeSingle();
+    if (legacy.error) {
+      throw new Error(
+        `Could not load portfolio site (${filter.column}=${filter.value}): ${legacy.error.message}`,
+      );
+    }
+    return markOwnerIfDefault((legacy.data as ResolvedSite | null) || null);
+  }
+
+  if (owned.error) {
+    if (
+      owned.error.message.toLowerCase().includes("portfolio_sites") ||
+      owned.error.message.toLowerCase().includes("schema cache")
+    ) {
+      return null;
+    }
+    throw new Error(
+      `Could not load portfolio site (${filter.column}=${filter.value}): ${owned.error.message}`,
+    );
+  }
+
+  return null;
+}
+
+async function fetchSiteById(supabase: SupabaseServer, siteId: string) {
+  return fetchSiteRow(supabase, { column: "id", value: siteId });
+}
+
+async function fetchSiteBySlug(supabase: SupabaseServer, slug: string) {
   if (!slug) return null;
-  const { data } = await supabase
-    .from("portfolio_sites")
-    .select("id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at")
-    .eq("slug", slug)
-    .maybeSingle();
-  return (data as ResolvedSite | null) || null;
+  return fetchSiteRow(supabase, { column: "slug", value: slug });
 }
 
-async function fetchOwnerSite(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
-  const { data } = await supabase
+async function fetchOwnerSite(supabase: SupabaseServer): Promise<ResolvedSite | null> {
+  const byFlag = await supabase
     .from("portfolio_sites")
-    .select("id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at")
+    .select(SITE_COLUMNS_WITH_OWNER)
     .eq("is_owner_site", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (data) return data as ResolvedSite;
+
+  if (!byFlag.error && byFlag.data) {
+    return markOwnerIfDefault(byFlag.data as ResolvedSite);
+  }
+
+  if (byFlag.error && !isMissingColumnError(byFlag.error.message, "is_owner_site")) {
+    if (
+      byFlag.error.message.toLowerCase().includes("portfolio_sites") ||
+      byFlag.error.message.toLowerCase().includes("schema cache")
+    ) {
+      return null;
+    }
+    throw new Error(`Could not load owner portfolio site: ${byFlag.error.message}`);
+  }
+
+  // Column missing or no is_owner_site row — use slug=default (migration 007).
   return fetchSiteBySlug(supabase, "default");
 }
 
@@ -253,7 +316,8 @@ async function seedEmptySiteContent(
 
 /**
  * Ensure an authenticated admin has a dedicated editable site.
- * Owner admins keep the owner site (existing production data).
+ * Owner admins keep the owner site (existing production data) and NEVER fall
+ * through to customer-* provisioning.
  * Other admins never write the owner site — they get an isolated customer site.
  */
 export async function resolveAdminSite(user: {
@@ -269,9 +333,43 @@ export async function resolveAdminSite(user: {
   const ownerEmail = ownerAdminEmail();
   const isOwnerAdmin = Boolean(ownerEmail && email && email === ownerEmail);
 
+  // --- Owner path: always existing owner/default site; never customer-* ---
+  if (isOwnerAdmin) {
+    const ownerSite = await fetchOwnerSite(supabase);
+    if (!ownerSite?.id) {
+      throw new Error(
+        "Owner admin could not resolve portfolio_sites slug='default' (migration 007) or is_owner_site=true (migration 009). Refusing to create a customer site for the owner.",
+      );
+    }
+
+    const { error: memberError } = await supabase.from("portfolio_site_members").upsert({
+      site_id: ownerSite.id,
+      user_id: user.id,
+      role: "owner",
+    });
+    if (memberError) {
+      const { data: membership } = await supabase
+        .from("portfolio_site_members")
+        .select("site_id")
+        .eq("site_id", ownerSite.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!membership) {
+        throw new Error(
+          `Owner admin could not attach to owner site (${ownerSite.slug}): ${memberError.message}. Confirm portfolio_admins grant + portfolio_site_members RLS (migrations 002/007/009).`,
+        );
+      }
+    }
+
+    return { ...ownerSite, is_owner_site: true };
+  }
+
+  // --- Customer path: never the owner site ---
   const { data: memberships } = await supabase
     .from("portfolio_site_members")
-    .select("site_id, role, portfolio_sites(id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at)")
+    .select(
+      "site_id, role, portfolio_sites(id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at)",
+    )
     .eq("user_id", user.id);
 
   const sites = (memberships || [])
@@ -280,28 +378,18 @@ export async function resolveAdminSite(user: {
       if (Array.isArray(joined)) return joined[0] || null;
       return joined;
     })
-    .filter((site): site is ResolvedSite => Boolean(site?.id));
+    .filter((site): site is ResolvedSite => Boolean(site?.id))
+    .map((site) => markOwnerIfDefault(site) as ResolvedSite);
 
-  const ownerSite = sites.find((site) => site.is_owner_site) || (await fetchOwnerSite(supabase));
-  const personalSites = sites.filter((site) => !site.is_owner_site);
-
-  if (isOwnerAdmin) {
-    if (ownerSite) {
-      await supabase.from("portfolio_site_members").upsert({
-        site_id: ownerSite.id,
-        user_id: user.id,
-        role: "owner",
-      });
-      return ownerSite;
-    }
-  }
+  const ownerSite = sites.find((site) => isOwnerSiteRecord(site)) || (await fetchOwnerSite(supabase));
+  const personalSites = sites.filter((site) => !isOwnerSiteRecord(site));
 
   if (personalSites.length) {
     return personalSites.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))[0];
   }
 
   // Customer incorrectly attached only to the owner site — move them off it.
-  if (!isOwnerAdmin && ownerSite && sites.some((site) => site.id === ownerSite.id)) {
+  if (ownerSite && sites.some((site) => site.id === ownerSite.id)) {
     await supabase
       .from("portfolio_site_members")
       .delete()
@@ -312,6 +400,9 @@ export async function resolveAdminSite(user: {
   const slug = customerSlugForUser(user.id);
   const existing = await fetchSiteBySlug(supabase, slug);
   if (existing) {
+    if (isOwnerSiteRecord(existing)) {
+      throw new Error("Refusing to use the owner site as a customer workspace.");
+    }
     await supabase.from("portfolio_site_members").upsert({
       site_id: existing.id,
       user_id: user.id,
@@ -329,21 +420,49 @@ export async function resolveAdminSite(user: {
       onboarding_completed: false,
       is_owner_site: false,
     })
-    .select("id,slug,name,plan_tier,onboarding_completed,is_owner_site,created_at,updated_at")
+    .select(SITE_COLUMNS_WITH_OWNER)
     .single();
 
   if (error || !created) {
+    if (error && isMissingColumnError(error.message, "is_owner_site")) {
+      const retry = await supabase
+        .from("portfolio_sites")
+        .insert({
+          slug,
+          name: "My Portfolio",
+          plan_tier: "starter",
+          onboarding_completed: false,
+        })
+        .select(SITE_COLUMNS_CORE)
+        .single();
+      if (retry.error || !retry.data) {
+        throw new Error(retry.error?.message || "Could not create an isolated customer site.");
+      }
+      const site = retry.data as ResolvedSite;
+      await supabase.from("portfolio_site_members").upsert({
+        site_id: site.id,
+        user_id: user.id,
+        role: "owner",
+      });
+      await seedEmptySiteContent(supabase, site.id);
+      return { ...site, is_owner_site: false };
+    }
     throw new Error(error?.message || "Could not create an isolated customer site.");
   }
 
+  const createdSite = created as ResolvedSite;
+  if (isOwnerSiteRecord(createdSite)) {
+    throw new Error("Refusing to treat a newly created site as the owner site.");
+  }
+
   await supabase.from("portfolio_site_members").upsert({
-    site_id: created.id,
+    site_id: createdSite.id,
     user_id: user.id,
     role: "owner",
   });
 
-  await seedEmptySiteContent(supabase, created.id);
-  return created as ResolvedSite;
+  await seedEmptySiteContent(supabase, createdSite.id);
+  return { ...createdSite, is_owner_site: false };
 }
 
 export function assertSiteId(siteId: string | null | undefined): asserts siteId is string {

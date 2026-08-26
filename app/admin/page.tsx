@@ -37,7 +37,7 @@ export default async function AdminHomePage() {
         </article>
       ) : null}
 
-      {!stats.configured || !stats.cmsReady || !stats.adminGranted ? (
+      {!stats.configured || !stats.cmsReady || !stats.adminGranted || stats.resolutionError ? (
         <article className="admin-notice mt-6 text-sm text-muted">
           <p className="text-text">Setup still needed</p>
           <ul className="mt-3 grid gap-2">
@@ -56,6 +56,9 @@ export default async function AdminHomePage() {
                 ? `Write access is granted for ${email || "the configured admin"}.`
                 : "Grant admin access after creating the Auth user that matches server-only ADMIN_EMAIL. Writes stay blocked by RLS until then."}
             </li>
+            {stats.resolutionError ? (
+              <li className="text-text">Site resolution: {stats.resolutionError}</li>
+            ) : null}
           </ul>
         </article>
       ) : null}
