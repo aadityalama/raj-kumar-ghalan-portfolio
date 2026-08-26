@@ -26,7 +26,7 @@ function scoped(query: any, siteId: string) {
 async function adminSiteContext() {
   const user = await requireAdmin();
   if (!hasSupabaseEnv()) {
-    return { user, siteId: null as string | null, supabase: null as null };
+    return { user, siteId: null as string | null, siteSlug: null as string | null, supabase: null as null };
   }
   const supabase = await createSupabaseServerClient();
   const site = await resolveAdminSite(user);
@@ -36,7 +36,7 @@ async function adminSiteContext() {
     user_id: user.id,
     role: "owner",
   });
-  return { user, siteId: site.id, supabase };
+  return { user, siteId: site.id, siteSlug: site.slug, supabase };
 }
 
 export async function getAdminDashboard() {
@@ -51,12 +51,22 @@ export async function getAdminDashboard() {
     cmsReady: false,
     adminGranted: false,
     siteId: null as string | null,
+    siteSlug: null as string | null,
+    resolutionError: null as string | null,
     recent: [] as Array<{ label: string; at: string }>,
   };
 
   try {
-    const { user, siteId, supabase } = await adminSiteContext();
-    if (!siteId || !supabase) return empty;
+    const { user, siteId, siteSlug, supabase } = await adminSiteContext();
+    if (!siteId || !supabase) {
+      return {
+        ...empty,
+        configured: hasSupabaseEnv(),
+        resolutionError: hasSupabaseEnv()
+          ? "Admin site could not be resolved (missing siteId)."
+          : "Supabase environment variables are not configured.",
+      };
+    }
 
     const [projects, photos, skills, sections, settings, contact, seo, productCards, adminRow] =
       await Promise.all([
@@ -73,6 +83,14 @@ export async function getAdminDashboard() {
         ),
         supabase.from("portfolio_admins").select("user_id").eq("user_id", user.id).maybeSingle(),
       ]);
+
+    const queryErrors = [
+      projects.error?.message,
+      photos.error?.message,
+      skills.error?.message,
+      sections.error?.message,
+      settings.error?.message,
+    ].filter(Boolean) as string[];
 
     const recent = [
       ...(projects.data || []).map((item: { title: string; updated_at?: string | null }) => ({
@@ -114,10 +132,17 @@ export async function getAdminDashboard() {
       cmsReady: Boolean(settings.data) && !settings.error,
       adminGranted: Boolean(adminRow.data) && !adminRow.error,
       siteId,
+      siteSlug,
+      resolutionError: queryErrors.length ? queryErrors.join(" | ") : null,
       recent,
     };
-  } catch {
-    return empty;
+  } catch (error) {
+    return {
+      ...empty,
+      configured: hasSupabaseEnv(),
+      resolutionError:
+        error instanceof Error ? error.message : "Admin site resolution failed.",
+    };
   }
 }
 
