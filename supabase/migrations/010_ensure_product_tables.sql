@@ -1,24 +1,43 @@
--- Ensure product CMS tables exist with the schema expected by the current app
--- (final shape after 006_product_section + 007_productize_multitenant + 009_site_isolation).
+-- Production repair: ensure product CMS tables exist for Feature Card / Product CMS.
+-- Final schema matches 006_product_section + 007_productize_multitenant + 009_site_isolation.
 --
--- Safe / idempotent repair for production DBs that skipped 006_product_section.sql
--- (or only partially applied it). Creates ONLY:
---   - public.portfolio_product_settings
---   - public.portfolio_product_cards
---   - public.portfolio_product_features
+-- Idempotent. Creates ONLY missing product tables/columns:
+--   public.portfolio_product_settings
+--   public.portfolio_product_cards
+--   public.portfolio_product_features
 --
 -- Does NOT:
---   - seed or update product content
---   - drop / truncate / reset any tables
---   - touch projects, gallery, skills, settings, or other CMS tables
---
--- Do not execute from the app automatically — apply in the Supabase SQL editor,
--- then reload PostgREST (NOTIFY below).
+--   - execute automatically (apply manually in Supabase SQL editor)
+--   - redefine is_site_editor / is_portfolio_admin / touch_updated_at
+--   - touch portfolio_site_members (or any of its RLS policies)
+--   - drop constraints via broad name/definition patterns
+--   - seed, update, delete, truncate, or reset any CMS content
+--   - touch projects, gallery, skills, settings, or other non-product tables
+
+-- ---------------------------------------------------------------------------
+-- Preconditions (reuse existing helpers; do not recreate them)
+-- ---------------------------------------------------------------------------
+
+do $$
+begin
+  if to_regprocedure('public.touch_updated_at()') is null then
+    raise exception 'Missing public.touch_updated_at(). Apply 001_portfolio_cms.sql first.';
+  end if;
+  if to_regprocedure('public.is_portfolio_admin()') is null then
+    raise exception 'Missing public.is_portfolio_admin(). Apply 001/004 first.';
+  end if;
+  if to_regprocedure('public.is_site_editor(uuid)') is null then
+    raise exception 'Missing public.is_site_editor(uuid). Apply 007/009 first.';
+  end if;
+  if to_regclass('public.portfolio_sites') is null then
+    raise exception 'Missing public.portfolio_sites. Apply 007_productize_multitenant.sql first.';
+  end if;
+end $$;
 
 create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------------------
--- Tables (create with full final column set when missing)
+-- Tables (full final column set; no legacy check (id = 1))
 -- ---------------------------------------------------------------------------
 
 create table if not exists public.portfolio_product_settings (
@@ -73,76 +92,78 @@ create table if not exists public.portfolio_product_features (
 );
 
 -- ---------------------------------------------------------------------------
--- Columns (no-op when CREATE already included them; fills gaps on partial tables)
+-- Columns added by 007 (no-op when already present)
 -- ---------------------------------------------------------------------------
 
 alter table public.portfolio_product_settings
-  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade,
-  add column if not exists section_title text not null default 'The Product',
-  add column if not exists case_title text not null default '',
-  add column if not exists case_eyebrow text not null default 'Featured work',
-  add column if not exists live_url text not null default '',
-  add column if not exists category text not null default '',
-  add column if not exists short_description text not null default '',
-  add column if not exists problem_title text not null default 'The Problem',
-  add column if not exists problem_body text not null default '',
-  add column if not exists vision_title text not null default 'The Vision',
-  add column if not exists vision_body text not null default '',
-  add column if not exists built_title text not null default 'What I Built',
-  add column if not exists built_body text not null default '',
-  add column if not exists tech_title text not null default 'Technology',
-  add column if not exists tech_body text not null default '',
-  add column if not exists philosophy_title text not null default 'Product philosophy',
-  add column if not exists philosophy_body text not null default '',
-  add column if not exists technologies text[] not null default '{}',
-  add column if not exists visible boolean not null default true,
-  add column if not exists sort_order int not null default 0,
-  add column if not exists updated_at timestamptz not null default now();
+  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade;
+
+alter table public.portfolio_product_settings
+  add column if not exists case_title text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists case_eyebrow text not null default 'Featured work';
+
+alter table public.portfolio_product_settings
+  add column if not exists live_url text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists category text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists short_description text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists problem_title text not null default 'The Problem';
+
+alter table public.portfolio_product_settings
+  add column if not exists problem_body text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists vision_title text not null default 'The Vision';
+
+alter table public.portfolio_product_settings
+  add column if not exists vision_body text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists built_title text not null default 'What I Built';
+
+alter table public.portfolio_product_settings
+  add column if not exists built_body text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists tech_title text not null default 'Technology';
+
+alter table public.portfolio_product_settings
+  add column if not exists tech_body text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists philosophy_title text not null default 'Product philosophy';
+
+alter table public.portfolio_product_settings
+  add column if not exists philosophy_body text not null default '';
+
+alter table public.portfolio_product_settings
+  add column if not exists technologies text[] not null default '{}';
+
+alter table public.portfolio_product_settings
+  add column if not exists visible boolean not null default true;
+
+alter table public.portfolio_product_settings
+  add column if not exists sort_order int not null default 0;
 
 alter table public.portfolio_product_cards
-  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade,
-  add column if not exists title text not null default 'Untitled',
-  add column if not exists description text not null default '',
-  add column if not exists image_url text not null default '',
-  add column if not exists image_path text,
-  add column if not exists link_url text not null default '',
-  add column if not exists category text not null default '',
-  add column if not exists visible boolean not null default true,
-  add column if not exists sort_order int not null default 0,
-  add column if not exists created_at timestamptz not null default now(),
-  add column if not exists updated_at timestamptz not null default now();
+  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade;
+
+alter table public.portfolio_product_cards
+  add column if not exists category text not null default '';
 
 alter table public.portfolio_product_features
-  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade,
-  add column if not exists title text not null default 'Untitled',
-  add column if not exists description text not null default '',
-  add column if not exists visible boolean not null default true,
-  add column if not exists sort_order int not null default 0,
-  add column if not exists created_at timestamptz not null default now(),
-  add column if not exists updated_at timestamptz not null default now();
+  add column if not exists site_id uuid references public.portfolio_sites (id) on delete cascade;
 
--- Drop legacy singleton id=1 check from 006 (multi-site allows one row per site).
-do $$
-declare
-  conname text;
-begin
-  for conname in
-    select c.conname
-    from pg_constraint c
-    join pg_class t on t.oid = c.conrelid
-    join pg_namespace n on n.oid = t.relnamespace
-    where n.nspname = 'public'
-      and t.relname = 'portfolio_product_settings'
-      and pg_get_constraintdef(c.oid) ilike '%id%1%'
-  loop
-    execute format('alter table public.portfolio_product_settings drop constraint if exists %I', conname);
-  end loop;
-end $$;
-
--- Autoincrement id for per-site product settings rows (matches 009).
+-- Per-site settings id sequence (009). Does not modify row data.
 create sequence if not exists public.portfolio_product_settings_id_seq;
 
--- Empty table → next nextval() = 1; existing rows → next = max(id)+1.
 select setval(
   'public.portfolio_product_settings_id_seq',
   coalesce((select max(id) from public.portfolio_product_settings), 1),
@@ -159,7 +180,7 @@ create unique index if not exists portfolio_product_settings_site_uidx
   on public.portfolio_product_settings (site_id);
 
 -- ---------------------------------------------------------------------------
--- updated_at triggers
+-- Triggers (existing touch_updated_at only)
 -- ---------------------------------------------------------------------------
 
 drop trigger if exists portfolio_product_settings_touch on public.portfolio_product_settings;
@@ -175,7 +196,10 @@ create trigger portfolio_product_features_touch before update on public.portfoli
 for each row execute function public.touch_updated_at();
 
 -- ---------------------------------------------------------------------------
--- RLS + policies (public read from 006; membership writes from 009)
+-- RLS: same pattern as other content tables after 009
+-- Write checks call existing security-definer is_site_editor(uuid), which reads
+-- portfolio_site_members bypassing RLS — does not recreate site_members policies
+-- and does not introduce self-referential RLS recursion.
 -- ---------------------------------------------------------------------------
 
 alter table public.portfolio_product_settings enable row level security;
@@ -213,7 +237,7 @@ create policy portfolio_product_features_admin_write on public.portfolio_product
   with check (site_id is not null and public.is_site_editor(site_id));
 
 -- ---------------------------------------------------------------------------
--- Privileges (same grants as 006_product_section.sql)
+-- Privileges
 -- ---------------------------------------------------------------------------
 
 grant select on
@@ -230,5 +254,4 @@ to authenticated;
 
 grant usage, select on sequence public.portfolio_product_settings_id_seq to authenticated;
 
--- Refresh PostgREST schema cache so the new tables are visible immediately.
 notify pgrst, 'reload schema';
